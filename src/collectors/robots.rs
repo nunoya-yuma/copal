@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use log::{debug, warn};
 use reqwest::Url;
+use std::sync::Arc;
 use texting_robots::{get_robots_url, Robot};
 use tokio::sync::Mutex;
 
@@ -9,15 +10,16 @@ use super::web::{HttpClient, USER_AGENT};
 
 /// Cache for robots.txt per domain origin.
 /// Stores parsed `Robot` instances keyed by origin (e.g. "https://example.com").
-/// Uses `tokio::sync::Mutex` for interior mutability so callers only need `&self`.
+/// Uses `Arc<Mutex<...>>` so clones share the same cache (e.g. across Web server requests).
+#[derive(Clone)]
 pub(crate) struct RobotsCache {
-    cache: tokio::sync::Mutex<HashMap<String, Option<Robot>>>,
+    cache: Arc<Mutex<HashMap<String, Option<Robot>>>>,
 }
 
 impl RobotsCache {
     pub(crate) fn new() -> Self {
         Self {
-            cache: Mutex::new(HashMap::new()),
+            cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -186,6 +188,21 @@ mod tests {
         let cache = RobotsCache::new();
 
         assert!(cache.is_allowed(&client, "https://example.com/page").await);
+    }
+
+    #[tokio::test]
+    async fn test_single_cache_is_shared() {
+        let clone_a = RobotsCache::new();
+        let clone_b = clone_a.clone();
+        let client = MockHttpClient::new()
+            .with_response("https://example.com/robots.txt", "User-agent: *\nAllow: /");
+
+        clone_a
+            .is_allowed(&client, "https://example.com/page")
+            .await;
+
+        let locked = clone_b.cache.lock().await;
+        assert_eq!(locked.len(), 1)
     }
 
     #[tokio::test]
