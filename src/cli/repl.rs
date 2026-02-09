@@ -10,8 +10,8 @@ use rustyline::DefaultEditor;
 use std::io::{self, Write};
 
 use super::render::{render_markdown, try_clear_lines};
-use crate::cli::ConversationHistory;
-use crate::cli::DEFAULT_MAX_TURNS;
+use crate::session::ConversationHistory;
+use crate::session::DEFAULT_MAX_TURNS;
 
 const PROMPT: &str = "> ";
 const HISTORY_FILE: &str = ".copal_history";

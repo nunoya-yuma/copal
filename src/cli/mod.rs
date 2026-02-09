@@ -1,10 +1,7 @@
-mod history;
 mod render;
 mod repl;
 
 use clap::Parser;
-
-pub use history::{ConversationHistory, DEFAULT_MAX_TURNS};
 
 pub use render::render_markdown;
 pub use repl::run_interactive;
