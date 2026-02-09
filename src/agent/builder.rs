@@ -9,7 +9,7 @@ const PREAMBLE: &str =
     "You are a research assistant that helps users gather and summarize information from the web";
 
 /// Create an Ollama-based research agent
-pub fn create_ollama_agent(model: &str) -> Agent<ollama::CompletionModel> {
+pub fn create_ollama_agent(model: &str, web_fetch: WebFetch) -> Agent<ollama::CompletionModel> {
     let client = ollama::Client::builder()
         .api_key(Nothing)
         .build()
@@ -18,7 +18,7 @@ pub fn create_ollama_agent(model: &str) -> Agent<ollama::CompletionModel> {
     client
         .agent(model)
         .preamble(PREAMBLE)
-        .tool(WebFetch::new())
+        .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
         .build()
@@ -28,26 +28,31 @@ pub fn create_ollama_agent(model: &str) -> Agent<ollama::CompletionModel> {
 pub fn create_gemini_agent(
     api_key: &str,
     model: &str,
+    web_fetch: WebFetch,
 ) -> Agent<gemini::completion::CompletionModel> {
     let client = gemini::Client::new(api_key).expect("Failed to create Gemini client");
 
     client
         .agent(model)
         .preamble(PREAMBLE)
-        .tool(WebFetch::new())
+        .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
         .build()
 }
 
 /// Create an OpenAI-based research agent
-pub fn create_openai_agent(api_key: &str, model: &str) -> Agent<ResponsesCompletionModel> {
+pub fn create_openai_agent(
+    api_key: &str,
+    model: &str,
+    web_fetch: WebFetch,
+) -> Agent<ResponsesCompletionModel> {
     let client: rig::client::Client<openai::OpenAIResponsesExt> =
         openai::Client::new(api_key).expect("Failed to create OpenAI client");
     client
         .agent(model)
         .preamble(PREAMBLE)
-        .tool(WebFetch::new())
+        .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
         .build()
@@ -92,7 +97,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_ollama_agent_with_web_fetch() {
-        let agent = create_ollama_agent("qwen3");
+        let agent = create_ollama_agent("qwen3", WebFetch::new());
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
@@ -108,7 +113,7 @@ mod tests {
         dotenv().ok();
 
         let api_key = std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY required");
-        let agent = create_gemini_agent(&api_key, gemini::completion::GEMINI_2_5_FLASH);
+        let agent = create_gemini_agent(&api_key, gemini::completion::GEMINI_2_5_FLASH, WebFetch::new());
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
@@ -124,7 +129,7 @@ mod tests {
         dotenv().ok();
 
         let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY required");
-        let agent = create_openai_agent(&api_key, openai::completion::GPT_4_1_MINI);
+        let agent = create_openai_agent(&api_key, openai::completion::GPT_4_1_MINI, WebFetch::new());
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
