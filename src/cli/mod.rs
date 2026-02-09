@@ -10,7 +10,7 @@ pub use render::render_markdown;
 pub use repl::run_interactive;
 
 #[derive(Parser, Debug)]
-#[command(name = "cipherant")]
+#[command(name = "copal")]
 #[command(about = "Personal Research Agent", long_about = None)]
 pub struct Cli {
     /// Start interactive mode (REPL)

@@ -189,30 +189,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
-name = "cipherant"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "crossterm 0.28.1",
- "dotenvy",
- "env_logger",
- "futures",
- "log",
- "pdf-extract",
- "reqwest",
- "rig-core",
- "rustyline",
- "scraper",
- "serde",
- "serde_json",
- "termimad",
- "texting_robots",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "clap"
 version = "4.5.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -283,6 +259,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "980c2afde4af43d6a05c5be738f9eae595cff86dce1f38f88b95058a98c027f3"
 dependencies = [
  "crossterm 0.29.0",
+]
+
+[[package]]
+name = "copal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm 0.28.1",
+ "dotenvy",
+ "env_logger",
+ "futures",
+ "log",
+ "pdf-extract",
+ "reqwest",
+ "rig-core",
+ "rustyline",
+ "scraper",
+ "serde",
+ "serde_json",
+ "termimad",
+ "texting_robots",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
