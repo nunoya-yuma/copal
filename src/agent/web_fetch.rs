@@ -26,6 +26,9 @@ pub enum WebFetchError {
     FetchError(#[from] anyhow::Error),
 }
 
+/// Web page fetcher with shared robots.txt cache.
+/// Clone shares the same cache via Arc, enabling cache reuse across agents.
+#[derive(Clone)]
 pub struct WebFetch {
     robots_cache: RobotsCache,
 }
