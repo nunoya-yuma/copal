@@ -14,14 +14,14 @@ use crate::cli::ConversationHistory;
 use crate::cli::DEFAULT_MAX_TURNS;
 
 const PROMPT: &str = "> ";
-const HISTORY_FILE: &str = ".cipherant_history";
+const HISTORY_FILE: &str = ".copal_history";
 
 pub async fn run_interactive<M>(agent: Agent<M>)
 where
     M: CompletionModel + 'static,
     M::StreamingResponse: GetTokenUsage,
 {
-    println!("Cipherant Interactive Mode");
+    println!("Copal Interactive Mode");
     println!("Type 'exit' or 'quit' to exit, Ctrl+D to quit\n");
 
     let mut rl = DefaultEditor::new().expect("Failed to create editor");

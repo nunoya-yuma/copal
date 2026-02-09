@@ -40,7 +40,7 @@ cargo run -- -i
 
 Features:
 - Command history (↑↓ arrow keys)
-- History persisted to `.cipherant_history`
+- History persisted to `.copal_history`
 - `exit` or `quit` to end session
 - `Ctrl+C` to cancel input, `Ctrl+D` to exit
 

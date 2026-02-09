@@ -17,7 +17,7 @@ pub struct PageContent {
 }
 
 /// User-Agent string used for all HTTP requests
-pub(crate) const USER_AGENT: &str = "cipherant/0.1.0";
+pub(crate) const USER_AGENT: &str = "copal/0.1.0";
 
 /// Trait for HTTP client abstraction (enables mocking in tests)
 pub(crate) trait HttpClient {
