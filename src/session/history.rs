@@ -7,6 +7,7 @@ use rig::OneOrMany;
 pub const DEFAULT_MAX_TURNS: usize = 20;
 
 /// Manages conversation history for multi-turn dialogue
+#[derive(Clone)]
 pub struct ConversationHistory {
     messages: Vec<Message>,
     max_turns: usize,
