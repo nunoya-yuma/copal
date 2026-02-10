@@ -3,10 +3,13 @@ name = "copal"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["cli"]
+cli = ["dep:rustyline", "dep:termimad", "dep:crossterm"]
+
 [dependencies]
-# CLI
-clap = { version = "4.5", features = ["derive"] }
-rustyline = "17.0"
+# CLI (optional, gated behind "cli" feature)
+rustyline = { version = "17.0", optional = true }
 
 # Async runtime
 tokio = { version = "1.49", features = ["full"] }
@@ -42,8 +45,8 @@ texting_robots = "0.2"
 # PDF text extraction
 pdf-extract = "0.7"
 
-# Terminal markdown rendering
-termimad = "0.30"
-crossterm = "0.28"
+# Terminal markdown rendering (optional, gated behind "cli" feature)
+termimad = { version = "0.30", optional = true }
+crossterm = { version = "0.28", optional = true }
 
 # Web search (using reqwest to call Tavily API directly)
