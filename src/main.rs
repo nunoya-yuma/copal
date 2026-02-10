@@ -19,8 +19,7 @@ async fn main() {
         use std::env;
 
         let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string());
-        let model =
-            env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
+        let model = env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
         let web_fetch = WebFetch::new();
 
         match provider.as_str() {

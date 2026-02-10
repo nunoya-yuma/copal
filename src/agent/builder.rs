@@ -113,7 +113,11 @@ mod tests {
         dotenv().ok();
 
         let api_key = std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY required");
-        let agent = create_gemini_agent(&api_key, gemini::completion::GEMINI_2_5_FLASH, WebFetch::new());
+        let agent = create_gemini_agent(
+            &api_key,
+            gemini::completion::GEMINI_2_5_FLASH,
+            WebFetch::new(),
+        );
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
@@ -129,7 +133,8 @@ mod tests {
         dotenv().ok();
 
         let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY required");
-        let agent = create_openai_agent(&api_key, openai::completion::GPT_4_1_MINI, WebFetch::new());
+        let agent =
+            create_openai_agent(&api_key, openai::completion::GPT_4_1_MINI, WebFetch::new());
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
