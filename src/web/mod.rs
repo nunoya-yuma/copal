@@ -1,5 +1,6 @@
-// Web backend module (Phase 2)
-
+pub mod handlers;
+pub mod router;
 mod state;
 
+pub use router::build_router;
 pub use state::AppState;
