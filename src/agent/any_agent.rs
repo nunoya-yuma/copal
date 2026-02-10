@@ -2,11 +2,15 @@ use std::env;
 use std::pin::Pin;
 
 use futures::Stream;
+use futures::StreamExt;
 use rig::agent::Agent;
+use rig::agent::MultiTurnStreamItem;
 use rig::completion::Message;
+use rig::providers::gemini;
 use rig::providers::ollama;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
-use rig::providers::{gemini, openai};
+use rig::streaming::StreamedAssistantContent;
+use rig::streaming::StreamingChat;
 
 use super::{
     create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, WebFetch,
@@ -66,26 +70,59 @@ impl AnyAgent {
         prompt: &str,
         history: Vec<Message>,
     ) -> Pin<Box<dyn Stream<Item = ChatStreamEvent> + Send>> {
-        // TODO(human): Implement stream_chat
-        // Match on self to get the inner Agent<M>, call agent.stream_chat(prompt, history).await,
-        // then map the stream:
-        //   - MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(t))
-        //       → ChatStreamEvent::TextDelta(t.text)
-        //   - MultiTurnStreamItem::FinalResponse(_)
-        //       → ChatStreamEvent::Done
-        //   - Err(e)
-        //       → ChatStreamEvent::Error(e.to_string())
-        //   - _ (tool calls etc.)
-        //       → skip (don't yield)
-        //
-        // Hint: Use a helper to avoid duplicating the mapping logic for each variant.
-        // See src/cli/repl.rs lines 62-86 for the stream consumption pattern.
-        //
-        // Example stream mapping approach:
-        //   use futures::StreamExt;
-        //   let stream = agent.stream_chat(prompt, history).await;
-        //   let mapped = stream.filter_map(|item| async { ... });
-        //   Box::pin(mapped)
-        todo!()
+        match self {
+            AnyAgent::Ollama(agent) => Self::map_stream(agent.stream_chat(prompt, history).await),
+            AnyAgent::Gemini(agent) => Self::map_stream(agent.stream_chat(prompt, history).await),
+            AnyAgent::OpenAi(agent) => Self::map_stream(agent.stream_chat(prompt, history).await),
+        }
+    }
+    fn map_stream<R: Send + 'static>(
+        stream: rig::agent::StreamingResult<R>,
+    ) -> Pin<Box<dyn Stream<Item = ChatStreamEvent> + Send>> {
+        let mapped = stream.filter_map(|item| async {
+            match item {
+                Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                    text,
+                ))) => Some(ChatStreamEvent::TextDelta(text.text)),
+                Ok(MultiTurnStreamItem::FinalResponse(_)) => Some(ChatStreamEvent::Done),
+                Err(e) => Some(ChatStreamEvent::Error(e.to_string())),
+                _ => None, // tool calls etc. skip(don't yield)
+            }
+        });
+        Box::pin(mapped)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_stream_chat_response() {
+        let web_fetch = WebFetch::new();
+        let agent = AnyAgent::from_env(web_fetch);
+
+        let mut stream = agent.stream_chat("hello", vec![]).await;
+
+        let mut got_text = false;
+        let mut got_done = false;
+
+        while let Some(event) = stream.next().await {
+            match event {
+                ChatStreamEvent::TextDelta(text) => {
+                    println!("{}", text);
+                    got_text = true;
+                }
+                ChatStreamEvent::Done => {
+                    got_done = true;
+                }
+                ChatStreamEvent::Error(e) => {
+                    panic!("Unexpected error: {}", e);
+                }
+            }
+        }
+
+        assert!(got_text, "Should have received at least one text delta");
+        assert!(got_done, "Should have received Done event");
     }
 }
