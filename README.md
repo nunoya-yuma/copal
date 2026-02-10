@@ -24,22 +24,12 @@ Get your Tavily API key at: https://app.tavily.com/
 
 ## Usage
 
-### One-shot mode
-
 ```shell
-cargo run -- "your query"
-# e.g.)
-cargo run -- "What are the new features in Rust 1.84?"
-```
-
-### Interactive mode
-
-```shell
-cargo run -- -i
+cargo run
 ```
 
 Features:
-- Command history (↑↓ arrow keys)
+- Command history (up/down arrow keys)
 - History persisted to `.copal_history`
 - `exit` or `quit` to end session
 - `Ctrl+C` to cancel input, `Ctrl+D` to exit
