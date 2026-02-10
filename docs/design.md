@@ -97,8 +97,7 @@ LLMを活用したローカル処理優先の個人向け調査・情報整理�
 - **reqwest**: HTTPクライアント（ウェブ情報取得）
 - **scraper**: HTMLパース
 - **serde** + **serde_json**: シリアライゼーション
-- **clap**: コマンドラインインターフェース
-- **rustyline**: REPL入力
+- **rustyline**: REPL入力（optional、`cli` feature）
 - **anyhow** + **thiserror**: エラー処理
 - **log** + **env_logger**: ログ
 
@@ -124,23 +123,22 @@ LLMを活用したローカル処理優先の個人向け調査・情報整理�
 - ✅ インタラクティブモード（REPL）
 - ✅ 会話履歴管理
 
-### フェーズ2: コア機能実装
-- 複数情報源からのデータ取得
-- ベクトルDBでの保存と検索
-- プロンプトテンプレート実装
-- 基本的な会話コンテキスト
+### フェーズ1.5: クラウド対応リファクタリング ✅
+- ✅ ConversationHistoryをsessionモジュールに分離
+- ✅ RobotsCacheをArc<Mutex>でClone対応（セッション間キャッシュ共有）
+- ✅ WebFetchをAgent Builderに依存性注入
+- ✅ Feature フラグでCLI/Web依存を分離
 
-### フェーズ3: 高度機能実装
-- PDFや他の文書形式の処理
-- メタデータと関連性分析
-- 調査計画の最適化
-- 並列処理とパフォーマンス改善
+### フェーズ2: Webバックエンド（次フェーズ）
+- Axum Webフレームワーク導入
+- SSE（Server-Sent Events）ストリーミング
+- セッション管理
+- フロントエンド（Chat UI）
 
-### フェーズ4: UI改善とテスト
-- リッチCLIまたは簡易GUIの実装
-- エラーハンドリングとロギング強化
-- ユーザーテスト
-- パッケージング
+### フェーズ3: デプロイ
+- Docker化
+- Azure Container Appsデプロイ
+- 認証（Bearer Token）
 
 ## LLMモデル選定
 - OpenAI API

@@ -13,7 +13,7 @@ Rust製のLLMを活用した個人向け調査・情報整理アシスタント�
 - **HTTP通信**: reqwest
 - **HTMLパース**: scraper
 - **シリアライゼーション**: serde, serde_json
-- **CLI**: clap, rustyline
+- **CLI**: rustyline (optional, behind `cli` feature flag)
 - **エラー処理**: anyhow, thiserror
 - **ログ**: log, env_logger
 
@@ -42,15 +42,21 @@ copal/
 │   ├── agent/               # エージェント構築・ツール定義
 │   │   ├── mod.rs
 │   │   ├── builder.rs       # プロバイダー別エージェント生成
-│   │   ├── web_fetch.rs     # Webフェッチツール
-│   │   └── web_search.rs    # Web検索ツール
-│   ├── cli/                 # CLIインターフェース
+│   │   ├── web_fetch.rs     # Webフェッチツール（Clone対応、キャッシュ共有）
+│   │   ├── web_search.rs    # Web検索ツール
+│   │   └── pdf_read.rs      # PDF読み取りツール
+│   ├── cli/                 # CLIインターフェース（feature "cli" でゲート）
 │   │   ├── mod.rs
 │   │   ├── repl.rs          # インタラクティブモード (REPL)
+│   │   └── render.rs        # ターミナルMarkdownレンダリング
+│   ├── session/             # セッション管理（CLI/Web共通）
+│   │   ├── mod.rs
 │   │   └── history.rs       # 会話履歴管理
 │   ├── collectors/          # 情報ソース
 │   │   ├── mod.rs
-│   │   └── web.rs           # Webスクレイピング
+│   │   ├── web.rs           # Webスクレイピング
+│   │   ├── robots.rs        # robots.txtキャッシュ（Arc共有）
+│   │   └── pdf.rs           # PDFテキスト抽出
 │   └── llm/                 # LLMクライアント
 │       ├── mod.rs
 │       ├── client.rs        # クライアントインターフェース
@@ -62,14 +68,14 @@ copal/
 ## 開発コマンド
 
 ```bash
-# ビルドと実行（ワンショットモード）
-cargo run -- "質問文"
-
-# インタラクティブモード（REPL）
-cargo run -- -i
+# 実行（インタラクティブモード）
+cargo run
 
 # テスト
 cargo test
+
+# CLI依存なしでテスト（コアモジュールのみ）
+cargo test --no-default-features
 
 # フォーマット
 cargo fmt
@@ -104,3 +110,10 @@ cargo build --release
 - [x] LLMインテグレーション（マルチプロバイダー: Ollama / OpenAI / Gemini）
 - [x] インタラクティブモード（REPL）
 - [x] 会話履歴管理
+
+フェーズ1.5: クラウド対応リファクタリング
+- [x] ConversationHistoryをsessionモジュールに分離
+- [x] RobotsCacheをArc<Mutex>でClone対応
+- [x] WebFetchをAgent Builderに外部注入
+- [x] Feature フラグでCLI/Web依存を分離
+- [ ] Phase 2: Axum Webバックエンド（次フェーズ）
