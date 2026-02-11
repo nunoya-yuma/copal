@@ -2,3 +2,7 @@
 .copal_history
 .env
 .claude/CLAUDE.local.md
+
+# Frontend build outputs
+frontend/dist/
+frontend/node_modules/
