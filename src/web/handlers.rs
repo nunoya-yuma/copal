@@ -3,7 +3,7 @@ use axum::{
     response::sse::{Event, Sse},
     Json,
 };
-use futures::stream::Stream;
+use futures::{stream::Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -42,24 +42,36 @@ pub enum SseEventData {
 /// 4. Stream chat response from AnyAgent
 /// 5. Convert ChatStreamEvent to SSE Event
 /// 6. Add final assistant response to conversation history
-///
-/// # TODO(human): Implement chat_handler
-/// Implement the following:
-/// 1. Extract session_id from request, or create new session if None
-/// 2. Add user message: state.add_user_message(&session_id, &req.message)
-/// 3. Get history: state.get_session(&session_id).unwrap().to_vec()
-/// 4. Call agent.stream_chat(&req.message, history).await
-/// 5. Convert stream to SSE events:
-///    - ChatStreamEvent::TextDelta(text) -> Event::default().json_data(SseEventData::Text { content: text })
-///    - ChatStreamEvent::Done -> Event::default().json_data(SseEventData::Done { session_id })
-///    - ChatStreamEvent::Error(e) -> Event::default().json_data(SseEventData::Error { message: e })
-/// 6. Collect full response and add to history after stream completes
-/// 7. Return Sse::new(stream)
 pub async fn chat_handler(
-    State(_state): State<Arc<AppState>>,
-    Json(_req): Json<ChatRequest>,
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = Result<Event, std::convert::Infallible>>> {
-    // TODO(human): Implement chat_handler
-    // For now, return an empty stream to satisfy the compiler
-    Sse::new(futures::stream::empty())
+    // Save user message to history
+    let session_id = match req.session_id {
+        Some(i) => i,
+        None => state.create_session(),
+    };
+    state.add_user_message(&session_id, &req.message);
+
+    // Send message to agent and get response
+    let history = state.get_session(&session_id).unwrap().to_vec();
+    let stream = state.agent.stream_chat(&req.message, history).await;
+    let mapped = stream.map(move |item| {
+        let event = match item {
+            ChatStreamEvent::TextDelta(text) => Event::default()
+                .json_data(SseEventData::Text { content: text })
+                .unwrap(),
+            ChatStreamEvent::Done => Event::default()
+                .json_data(SseEventData::Done {
+                    session_id: session_id.clone(),
+                })
+                .unwrap(),
+            ChatStreamEvent::Error(e) => Event::default()
+                .json_data(SseEventData::Error { message: e })
+                .unwrap(),
+        };
+        Ok(event)
+    });
+
+    Sse::new(mapped)
 }
