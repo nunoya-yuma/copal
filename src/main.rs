@@ -1,11 +1,17 @@
+use copal::agent::WebFetch;
 use dotenvy::dotenv;
 
 #[cfg(feature = "cli")]
-use copal::agent::{
-    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, WebFetch,
-};
+use copal::agent::{create_gemini_agent, create_ollama_agent, create_openai_agent, default_model};
 #[cfg(feature = "cli")]
 use copal::cli::run_interactive;
+#[cfg(feature = "web")]
+use copal::{
+    agent::AnyAgent,
+    web::{build_router, AppState},
+};
+#[cfg(feature = "web")]
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -44,17 +50,17 @@ async fn main() {
 
     #[cfg(feature = "web")]
     {
-        // TODO(human): Implement web server startup
-        // 1. Import necessary modules (AnyAgent, AppState, build_router)
-        // 2. Get provider and model from environment variables
-        // 3. Create AnyAgent using AnyAgent::from_env(WebFetch::new())
-        // 4. Create AppState with the agent
-        // 5. Build router with build_router(state)
-        // 6. Create TcpListener on 0.0.0.0:3000
-        // 7. Start server with axum::serve(listener, router.into_make_service()).await
-        // 8. Add proper error handling and logging
-
-        eprintln!("Web server startup not yet implemented");
+        let web_fetch = WebFetch::new();
+        let agent = AnyAgent::from_env(web_fetch);
+        let app_state = AppState::new(agent);
+        let router = build_router(Arc::new(app_state));
+        println!("🚀 Server running on http://0.0.0.0:3000");
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+            .await
+            .expect("Failed to create listener");
+        axum::serve(listener, router)
+            .await
+            .expect("Failed to start server");
     }
 
     #[cfg(not(any(feature = "cli", feature = "web")))]
