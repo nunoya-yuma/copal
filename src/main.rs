@@ -42,6 +42,21 @@ async fn main() {
         }
     }
 
-    #[cfg(not(feature = "cli"))]
-    eprintln!("CLI feature is not enabled. Build with: cargo build --features cli");
+    #[cfg(feature = "web")]
+    {
+        // TODO(human): Implement web server startup
+        // 1. Import necessary modules (AnyAgent, AppState, build_router)
+        // 2. Get provider and model from environment variables
+        // 3. Create AnyAgent using AnyAgent::from_env(WebFetch::new())
+        // 4. Create AppState with the agent
+        // 5. Build router with build_router(state)
+        // 6. Create TcpListener on 0.0.0.0:3000
+        // 7. Start server with axum::serve(listener, router.into_make_service()).await
+        // 8. Add proper error handling and logging
+
+        eprintln!("Web server startup not yet implemented");
+    }
+
+    #[cfg(not(any(feature = "cli", feature = "web")))]
+    eprintln!("No feature enabled. Build with: cargo build --features cli or --features web");
 }
