@@ -7,8 +7,6 @@ use futures::{channel::mpsc, stream::Stream, SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-// TODO(human): You'll need this for implementation
-#[allow(unused_imports)]
 use crate::agent::ChatStreamEvent;
 use crate::web::AppState;
 
@@ -40,48 +38,43 @@ async fn chat_stream(
     session_id: String,
     message: String,
 ) -> impl Stream<Item = Result<Event, std::convert::Infallible>> {
-    // TODO(human): Implement channel-based streaming with history persistence
-    //
-    // Current implementation: Direct stream mapping (no history save)
-    // Target implementation: Channel-based with text accumulation
-    //
-    // Steps to implement (TDD GREEN phase):
-    // 1. Create mpsc channel: let (mut tx, rx) = mpsc::channel::<Event>(100);
-    // 2. Clone Arc<AppState> and session_id for 'static lifetime
-    // 3. Spawn tokio task to:
-    //    - Consume agent stream
-    //    - Accumulate text in String (like cli/repl.rs line 74)
-    //    - Send SSE events to channel
-    //    - On Done: call state.add_assistant_message()
-    //    - Handle client disconnect (tx.send().is_err())
-    // 4. Return Sse::new(rx.map(|event| Ok(event)))
-    //
-    // Reference:
-    // - cli/repl.rs lines 62-95 for accumulation pattern
-    // - Plan file for detailed implementation guide
-    //
-    // Remove the code below and implement the channel-based approach:
+    let (mut tx, rx) = mpsc::channel::<Event>(100);
 
-    let history = state.get_session(&session_id).unwrap().to_vec();
-    let stream = state.agent.stream_chat(&message, history).await;
-    let mapped = stream.map(move |item| {
-        let event = match item {
-            ChatStreamEvent::TextDelta(text) => Event::default()
-                .json_data(SseEventData::Text { content: text })
-                .unwrap(),
-            ChatStreamEvent::Done => Event::default()
-                .json_data(SseEventData::Done {
-                    session_id: session_id.clone(),
-                })
-                .unwrap(),
-            ChatStreamEvent::Error(e) => Event::default()
-                .json_data(SseEventData::Error { message: e })
-                .unwrap(),
-        };
-        Ok(event)
+    tokio::spawn(async move {
+        let mut response_text = String::new();
+        let mut agent_stream = state
+            .agent
+            .stream_chat(&message, state.get_session(&session_id).unwrap().to_vec())
+            .await;
+
+        while let Some(event) = agent_stream.next().await {
+            let sse_event = match event {
+                ChatStreamEvent::TextDelta(text) => {
+                    response_text.push_str(&text);
+                    Event::default()
+                        .json_data(SseEventData::Text { content: text })
+                        .unwrap()
+                }
+                ChatStreamEvent::Done => {
+                    state.add_assistant_message(&session_id, &response_text);
+                    Event::default()
+                        .json_data(SseEventData::Done {
+                            session_id: session_id.clone(),
+                        })
+                        .unwrap()
+                }
+                ChatStreamEvent::Error(e) => Event::default()
+                    .json_data(SseEventData::Error { message: e })
+                    .unwrap(),
+            };
+
+            if tx.send(sse_event).await.is_err() {
+                break;
+            }
+        }
     });
 
-    mapped
+    rx.map(|event| Ok(event))
 }
 
 /// Chat handler that streams responses via Server-Sent Events (SSE)
@@ -147,18 +140,47 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Remove this when implementing
     async fn test_multi_turn_conversation_preserves_context() {
-        // TODO(human): Test multi-turn conversation history
-        // Same pattern as first test, but call chat_handler twice with same session_id
-        // After both turns complete, verify history.len() == 4
-
         let agent = AnyAgent::from_env(WebFetch::new());
         let state = Arc::new(AppState::new(agent));
         let session_id = state.create_session();
 
-        // TODO(human): Call chat_handler twice, then assert history.len() == 4
+        // Add user message (normally done by chat_handler)
+        state.add_user_message(&session_id, "test message");
 
-        panic!("TODO(human): Implement this test");
+        // Call internal stream function (testable)
+        let mut stream_first = chat_stream(
+            state.clone(),
+            session_id.clone(),
+            "test message".to_string(),
+        )
+        .await;
+
+        // Consume entire stream (simulate client)
+        while let Some(_) = stream_first.next().await {}
+
+        // Add user message (normally done by chat_handler)
+        state.add_user_message(&session_id, "test message");
+
+        // Call internal stream function (testable)
+        let mut stream_second = chat_stream(
+            state.clone(),
+            session_id.clone(),
+            "test message".to_string(),
+        )
+        .await;
+
+        // Consume entire stream (simulate client)
+        while let Some(_) = stream_second.next().await {}
+        // Wait for spawned task to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Verify: history should have 2 messages (user + assistant)
+        let history = state.get_session(&session_id).unwrap();
+        assert_eq!(
+            history.len(),
+            4,
+            "Should have 4 messages (user message + assistant response * 2)"
+        );
     }
 }
