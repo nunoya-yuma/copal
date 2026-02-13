@@ -2,118 +2,158 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startChatStream } from './api';
 import type { ChatRequest, SseEvent } from '../types';
 
-/**
- * api.ts のテスト
- *
- * TODO(human): このテストファイルを完成させてください
- *
- * テストの基本パターン:
- * 1. describe('機能名', () => { ... }) - テストグループ
- * 2. it('テストケース名', async () => { ... }) - 個別テスト
- * 3. expect(実際の値).toBe(期待する値) - アサーション
- *
- * SSEのテスト戦略:
- * - fetchをモック（vi.fn）して、レスポンスを偽装
- * - ReadableStreamを手動で作成してテスト
- */
-
 describe('startChatStream', () => {
-  // テスト前にfetchをモック化
   beforeEach(() => {
-    // グローバルfetchをモック関数に置き換え
     global.fetch = vi.fn();
   });
 
-  // テスト後にモックをクリア
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  /**
-   * TODO(human): テストケース1 - 正常なSSEストリームの処理
-   *
-   * 実装のヒント:
-   * 1. モックレスポンスを作成（ReadableStreamを含む）
-   * 2. startChatStream()を呼び出し
-   * 3. onEventコールバックで受信したイベントを記録
-   * 4. 期待するイベントが順番通りに受信されたか検証
-   */
-  it('should stream SSE events and call onEvent for each event', async () => {
-    // TODO(human): モックレスポンスを作成
-    // const mockResponse = {
-    //   ok: true,
-    //   body: new ReadableStream({
-    //     start(controller) {
-    //       // SSE形式のデータを送信
-    //       controller.enqueue(new TextEncoder().encode('data: {"type":"text","content":"Hello"}\n'));
-    //       controller.enqueue(new TextEncoder().encode('data: {"type":"done","session_id":"123"}\n'));
-    //       controller.close();
-    //     }
-    //   })
-    // };
+  describe('Normal case', () => {
+    it('should stream SSE events and call onEvent for each event', async () => {
+      // Mock a ReadableStream that emits two SSE events
+      const mockResponse = {
+        ok: true,
+        body: new ReadableStream({
+          start(controller) {
+            // Simulate server sending two complete SSE events
+            controller.enqueue(new TextEncoder().encode('data: {"type":"text","content":"Hello"}\n'));
+            controller.enqueue(new TextEncoder().encode('data: {"type":"done","session_id":"123"}\n'));
+            controller.close();
+          }
+        })
+      };
 
-    // TODO(human): fetchモックの戻り値を設定
-    // (global.fetch as any).mockResolvedValue(mockResponse);
+      (global.fetch as any).mockResolvedValue(mockResponse);
 
-    // TODO(human): 受信したイベントを記録する配列
-    // const receivedEvents: SseEvent[] = [];
+      const receivedEvents: SseEvent[] = [];
 
-    // TODO(human): startChatStream()を呼び出し
-    // const request: ChatRequest = { message: 'test' };
-    // await startChatStream(request, (event) => {
-    //   receivedEvents.push(event);
-    // });
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      });
 
-    // TODO(human): アサーション
-    // expect(receivedEvents).toHaveLength(2);
-    // expect(receivedEvents[0]).toEqual({ type: 'text', content: 'Hello' });
-    // expect(receivedEvents[1]).toEqual({ type: 'done', session_id: '123' });
+      expect(receivedEvents).toHaveLength(2);
+      expect(receivedEvents[0]).toEqual({ type: 'text', content: 'Hello' });
+      expect(receivedEvents[1]).toEqual({ type: 'done', session_id: '123' });
+    });
 
-    expect(true).toBe(true); // プレースホルダー
-  });
+    it('should handle incomplete lines correctly (buffering)', async () => {
+      // Test the buffering logic: SSE data can arrive in chunks at arbitrary boundaries
+      // This simulates a single JSON object split across two chunks
+      const mockResponse = {
+        ok: true,
+        body: new ReadableStream({
+          start(controller) {
+            // First chunk: incomplete JSON (missing closing brace and newline)
+            controller.enqueue(new TextEncoder().encode('data: {"type":"te'));
+            // Second chunk: completes the JSON
+            controller.enqueue(new TextEncoder().encode('xt","content":"Hello"}\n'));
+            controller.close();
+          }
+        })
+      };
 
-  /**
-   * TODO(human): テストケース2 - バッファリング処理のテスト
-   *
-   * 目的: 未完成の行が正しく次回に持ち越されるか検証
-   *
-   * 実装のヒント:
-   * 1. データを2回に分けて送信（1回目は行が途中で切れる）
-   * 2. 2回目で行が完成する
-   * 3. イベントが正しく1つだけ受信されるか検証
-   */
-  it('should handle incomplete lines correctly (buffering)', async () => {
-    // TODO(human): 行が途中で切れるケースをテスト
-    // 例: 1回目 "data: {\"type\":\"text\""
-    //     2回目 ",\"content\":\"test\"}\n"
+      (global.fetch as any).mockResolvedValue(mockResponse);
 
-    expect(true).toBe(true); // プレースホルダー
-  });
+      const receivedEvents: SseEvent[] = [];
 
-  /**
-   * TODO(human): テストケース3 - エラーハンドリング
-   *
-   * 実装のヒント:
-   * 1. fetchがエラーをthrowする場合
-   * 2. response.okがfalseの場合
-   * 3. JSON.parse()が失敗する場合
-   */
-  it('should handle fetch errors', async () => {
-    // TODO(human): fetchがエラーをthrowするケースをテスト
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      });
 
-    expect(true).toBe(true); // プレースホルダー
-  });
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0]).toEqual({ type: 'text', content: 'Hello' });
+    });
+  })
 
-  /**
-   * TODO(human): テストケース4 - クリーンアップ関数
-   *
-   * 実装のヒント:
-   * 1. startChatStream()が返すクリーンアップ関数を呼び出す
-   * 2. reader.cancel()が呼ばれたか検証
-   */
-  it('should return a cleanup function that cancels the reader', async () => {
-    // TODO(human): クリーンアップ関数をテスト
+  describe('Error handling', () => {
+    it('should handle network errors', async () => {
+      // Simulate fetch throwing an error (e.g., network unavailable, DNS failure)
+      (global.fetch as any).mockRejectedValue(new Error('connection error'));
 
-    expect(true).toBe(true); // プレースホルダー
-  });
+      const receivedEvents: SseEvent[] = [];
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      });
+
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Network error: Error: connection error' });
+    });
+
+    it('should handle Http response errors', async () => {
+      // Simulate HTTP error response (4xx or 5xx status codes)
+      const mockResponse = {
+        ok: false,
+        status: 404,
+      };
+
+      (global.fetch as any).mockResolvedValue(mockResponse);
+
+      const receivedEvents: SseEvent[] = [];
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      });
+
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Http post error: 404' });
+    });
+
+    it('should handle JSON parse errors', async () => {
+      // Test handling of malformed JSON in SSE data field
+      const mockResponse = {
+        ok: true,
+        body: new ReadableStream({
+          start(controller) {
+            // Send syntactically invalid JSON (missing quotes, etc.)
+            controller.enqueue(new TextEncoder().encode('data: {invalid json}}\n'));
+            controller.close();
+          }
+        })
+      };
+      (global.fetch as any).mockResolvedValue(mockResponse);
+
+      const receivedEvents: SseEvent[] = [];
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      });
+
+      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Json error: SyntaxError: Unexpected token i in JSON at position 1' });
+    });
+  })
+
+  describe('Clean up', () => {
+    it('should return a cleanup function that cancels the reader', async () => {
+      // Create a mock cancel function to verify it's called
+      const mockCancel = vi.fn();
+
+      // Mock ReadableStream with manual getReader() to inject our mock cancel
+      const mockResponse = {
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+            cancel: mockCancel  // Our spy function
+          })
+        }
+      };
+      (global.fetch as any).mockResolvedValue(mockResponse);
+
+      const request: ChatRequest = { message: 'test' };
+      const cleanup = await startChatStream(request, () => { });
+
+      // Call the returned cleanup function
+      cleanup();
+
+      // Verify that reader.cancel() was invoked
+      expect(mockCancel).toHaveBeenCalled();
+    });
+  })
 });
