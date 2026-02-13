@@ -1,42 +1,91 @@
 import type { ChatRequest, SseEvent } from '../types';
 
 /**
- * SSEストリームを開始し、イベントを処理する
+ * Start an SSE (Server-Sent Events) stream to the chat API and handle incoming events.
  *
- * TODO(human): この関数を実装してください
+ * This function initiates a POST request to `/api/chat` and processes the response as a stream
+ * of SSE events. Events are delivered via the `onEvent` callback as they arrive.
  *
- * 実装のヒント:
- * 1. fetch()で /api/chat にPOSTリクエスト
- * 2. response.body.getReader()でストリーム取得
- * 3. TextDecoderでバイト列を文字列に変換
- * 4. バッファリング: buffer.split('\n')で行分割、lines.pop()で未完成行を保持
- * 5. 'data: 'で始まる行をJSON.parse()してonEvent()に渡す
- * 6. クリーンアップ関数を返す（reader.cancel()）
+ * @param request - The chat request containing the message and optional session_id
+ * @param onEvent - Callback function invoked for each SSE event (text/done/error)
+ * @returns A Promise resolving to a cleanup function that cancels the stream when called
  *
- * 完全な実装例は ~/.claude/plans/concurrent-churning-finch.md の
- * 「完全な実装例（参照用）」セクションにあります。
- * どうしても詰まったときのみ参照してください。
+ * @example
+ * ```typescript
+ * const cleanup = await startChatStream(
+ *   { message: 'Hello', session_id: 'abc-123' },
+ *   (event) => {
+ *     if (event.type === 'text') {
+ *       console.log('Received:', event.content);
+ *     } else if (event.type === 'done') {
+ *       console.log('Stream completed. Session:', event.session_id);
+ *     } else if (event.type === 'error') {
+ *       console.error('Error:', event.message);
+ *     }
+ *   }
+ * );
+ *
+ * // Later, to cancel the stream:
+ * cleanup();
+ * ```
  */
 export async function startChatStream(
   request: ChatRequest,
   onEvent: (event: SseEvent) => void
 ): Promise<() => void> {
-  // TODO(human): fetchでPOSTリクエストを送信
-  // const response = await fetch('/api/chat', { ... });
+  let response;
+  try {
+    response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+  } catch (error) {
+    onEvent({ type: "error", message: `Network error: ${error}` });
+    return () => { };
+  }
 
-  // TODO(human): response.body.getReader()でストリーム取得
+  if (!response.ok) {
+    onEvent({ type: "error", message: `Http post error: ${response.status}` });
+    return () => { };
+  }
+  if (!response.body) {
+    throw new Error(`Readable stream is not supplied: ${response.status}`);
+  }
 
-  // TODO(human): TextDecoderとバッファを初期化
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
 
-  // TODO(human): readLoopを実装（while文でreader.read()を繰り返す）
+  // TODO: Refactor - Extract readLoop as a separate async function and run in background
+  // This would allow startChatStream to return immediately while continuing to read the stream.
+  // Note: Requires updating tests to handle async timing (e.g., setTimeout or Promise resolution)
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
 
-  // TODO(human): バッファリング処理を実装
-  // - buffer += decoder.decode(value, { stream: true })
-  // - const lines = buffer.split('\n')
-  // - buffer = lines.pop() || ''
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
 
-  // TODO(human): 'data: 'で始まる行を処理
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        let event;
+        try {
+          event = JSON.parse(data);
+        } catch (error) {
+          onEvent({ type: "error", message: `Json error: ${error}` });
+          return () => { };
+        }
+        onEvent(event);
+      }
+    }
+  }
 
-  // TODO(human): クリーンアップ関数を返す
-  throw new Error('Not implemented');
+  return () => reader.cancel();
 }
