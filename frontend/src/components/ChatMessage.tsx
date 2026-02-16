@@ -1,6 +1,4 @@
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Message } from '../types';
 
 interface ChatMessageProps {
@@ -22,11 +20,11 @@ interface ChatMessageProps {
  * 完全な実装例は ~/.claude/plans/concurrent-churning-finch.md にあります。
  */
 export function ChatMessage({ message }: ChatMessageProps) {
-  // TODO(human): div要素でmessageをラップ
-
-  // TODO(human): message.roleで条件分岐
-  // - 'assistant': ReactMarkdownを使用
-  // - 'user': pタグで表示
-
-  return <div>Not implemented</div>;
+  return (<div className={`message ${message.role}`}>
+    {message.role === 'assistant' ? (
+      <ReactMarkdown>{message.content}</ReactMarkdown>
+    ) : (
+      <p>{message.content}</p>
+    )}
+  </div>);
 }
