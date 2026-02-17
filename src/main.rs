@@ -27,8 +27,12 @@ async fn main() {
         let agent = AnyAgent::from_env(web_fetch);
         let app_state = AppState::new(agent);
         let router = build_router(Arc::new(app_state));
-        println!("🚀 Server running on http://0.0.0.0:3000");
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+
+        // Read PORT from environment (Azure Container Apps injects this dynamically)
+        let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+        let addr = format!("0.0.0.0:{}", port);
+        println!("🚀 Server running on http://{}", addr);
+        let listener = tokio::net::TcpListener::bind(&addr)
             .await
             .expect("Failed to create listener");
         axum::serve(listener, router)

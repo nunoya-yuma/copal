@@ -1,0 +1,25 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Development files
+.git/
+.github/
+.env
+.env.*
+*.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Other
+.copal_history
