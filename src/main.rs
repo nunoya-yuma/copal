@@ -1,9 +1,9 @@
 use copal::agent::WebFetch;
 use dotenvy::dotenv;
 
-#[cfg(feature = "cli")]
+#[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::agent::{create_gemini_agent, create_ollama_agent, create_openai_agent, default_model};
-#[cfg(feature = "cli")]
+#[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::cli::run_interactive;
 #[cfg(feature = "web")]
 use copal::{
@@ -20,7 +20,25 @@ async fn main() {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    #[cfg(feature = "cli")]
+    // Web server mode has priority (runs if web feature is enabled)
+    #[cfg(feature = "web")]
+    {
+        let web_fetch = WebFetch::new();
+        let agent = AnyAgent::from_env(web_fetch);
+        let app_state = AppState::new(agent);
+        let router = build_router(Arc::new(app_state));
+        println!("🚀 Server running on http://0.0.0.0:3000");
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+            .await
+            .expect("Failed to create listener");
+        axum::serve(listener, router)
+            .await
+            .expect("Failed to start server");
+        return; // Exit early to prevent CLI mode from running
+    }
+
+    // CLI mode (only runs if web feature is disabled)
+    #[cfg(all(feature = "cli", not(feature = "web")))]
     {
         use std::env;
 
@@ -46,21 +64,6 @@ async fn main() {
                 run_interactive(agent).await;
             }
         }
-    }
-
-    #[cfg(feature = "web")]
-    {
-        let web_fetch = WebFetch::new();
-        let agent = AnyAgent::from_env(web_fetch);
-        let app_state = AppState::new(agent);
-        let router = build_router(Arc::new(app_state));
-        println!("🚀 Server running on http://0.0.0.0:3000");
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-            .await
-            .expect("Failed to create listener");
-        axum::serve(listener, router)
-            .await
-            .expect("Failed to start server");
     }
 
     #[cfg(not(any(feature = "cli", feature = "web")))]
