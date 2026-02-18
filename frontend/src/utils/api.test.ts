@@ -126,8 +126,11 @@ describe('startChatStream', () => {
 
       expect(receivedEvents).toHaveLength(1);
       expect(receivedEvents[0].type).toBe('error');
-      expect(receivedEvents[0].message).toContain('Json error');
-      expect(receivedEvents[0].message).toContain('SyntaxError');
+      // Type narrowing: after checking type === 'error', TypeScript knows it has 'message'
+      if (receivedEvents[0].type === 'error') {
+        expect(receivedEvents[0].message).toContain('Json error');
+        expect(receivedEvents[0].message).toContain('SyntaxError');
+      }
     });
   })
 
