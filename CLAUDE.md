@@ -100,23 +100,10 @@ cargo build --release
 
 ## デプロイ情報
 
-### 本番環境（Azure Container Apps）
-- **URL**: https://copal-app.mangopebble-3eeb1787.japaneast.azurecontainerapps.io/
-- **リソースグループ**: `copal-rg`
-- **Container Registry**: `copal4481acr.azurecr.io`
-- **Container App**: `copal-app`
-- **リージョン**: Japan East (東日本)
-
 ### デプロイ方法
 ```bash
 # 自動デプロイ（GitHub Actions）
 git push origin main
-
-# 手動デプロイ（Azure CLI）
-az containerapp update \
-  --name copal-app \
-  --resource-group copal-rg \
-  --image copal4481acr.azurecr.io/copal:latest
 ```
 
 ### 環境変数設定
@@ -124,9 +111,10 @@ az containerapp update \
 - **Azure本番**: `LLM_PROVIDER=openai` または `gemini`（環境変数で設定）
 
 ### 重要な注意事項
-- **ターゲットポート**: 8080（`az containerapp ingress update --target-port 8080`）
+- **ターゲットポート**: 8080
 - **APIキー**: Azure Container Apps のシークレットで管理
 - **Ollama**: ローカル開発専用（Azure環境では使用不可）
+- **環境固有の情報**（URL・リソース名）はローカルメモリで管理（public repoには記載しない）
 
 ## ドキュメント
 - アーキテクチャ設計: [docs/design.md](docs/design.md)
