@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Manual trigger
 
 env:
-  REGISTRY: <your-acr-name>.azurecr.io  # TODO: Replace with your ACR name
+  REGISTRY: copal4481acr.azurecr.io
   IMAGE_NAME: copal
   CONTAINER_APP_NAME: copal-app
   RESOURCE_GROUP: copal-rg
