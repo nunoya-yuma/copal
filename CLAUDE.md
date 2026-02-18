@@ -130,6 +130,7 @@ az containerapp update \
 
 ## ドキュメント
 - アーキテクチャ設計: [docs/design.md](docs/design.md)
+- **デプロイガイド**: [docs/deployment.md](docs/deployment.md)（環境変数設定、履歴管理）
 - デプロイ計画: `~/.claude/plans/distributed-sniffing-diffie.md`
 
 ## 現在の開発フェーズ
