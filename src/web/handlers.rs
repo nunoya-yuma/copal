@@ -107,6 +107,7 @@ mod tests {
     use crate::web::AppState;
 
     #[tokio::test]
+    #[ignore] // Requires LLM API key (not available in CI)
     async fn test_chat_handler_saves_assistant_response_to_history() {
         // Setup
         let agent = AnyAgent::from_env(WebFetch::new());
@@ -140,6 +141,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires LLM API key (not available in CI)
     async fn test_multi_turn_conversation_preserves_context() {
         let agent = AnyAgent::from_env(WebFetch::new());
         let state = Arc::new(AppState::new(agent));
