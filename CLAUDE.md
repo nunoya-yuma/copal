@@ -98,8 +98,39 @@ cargo build --release
 | `OPENAI_API_KEY` | OpenAI APIキー | - |
 | `GEMINI_API_KEY` | Gemini APIキー | - |
 
+## デプロイ情報
+
+### 本番環境（Azure Container Apps）
+- **URL**: https://copal-app.mangopebble-3eeb1787.japaneast.azurecontainerapps.io/
+- **リソースグループ**: `copal-rg`
+- **Container Registry**: `copal4481acr.azurecr.io`
+- **Container App**: `copal-app`
+- **リージョン**: Japan East (東日本)
+
+### デプロイ方法
+```bash
+# 自動デプロイ（GitHub Actions）
+git push origin main
+
+# 手動デプロイ（Azure CLI）
+az containerapp update \
+  --name copal-app \
+  --resource-group copal-rg \
+  --image copal4481acr.azurecr.io/copal:latest
+```
+
+### 環境変数設定
+- **ローカル開発** (`.env`): `LLM_PROVIDER=ollama`（デフォルト）
+- **Azure本番**: `LLM_PROVIDER=openai` または `gemini`（環境変数で設定）
+
+### 重要な注意事項
+- **ターゲットポート**: 8080（`az containerapp ingress update --target-port 8080`）
+- **APIキー**: Azure Container Apps のシークレットで管理
+- **Ollama**: ローカル開発専用（Azure環境では使用不可）
+
 ## ドキュメント
 - アーキテクチャ設計: [docs/design.md](docs/design.md)
+- デプロイ計画: `~/.claude/plans/distributed-sniffing-diffie.md`
 
 ## 現在の開発フェーズ
 フェーズ1: 基盤実装
@@ -116,4 +147,17 @@ cargo build --release
 - [x] RobotsCacheをArc<Mutex>でClone対応
 - [x] WebFetchをAgent Builderに外部注入
 - [x] Feature フラグでCLI/Web依存を分離
-- [ ] Phase 2: Axum Webバックエンド（次フェーズ）
+
+フェーズ2: Axum Webバックエンド
+- [x] Axum WebサーバーとSSEストリーミング実装
+- [x] React + TypeScript フロントエンド
+- [x] セッション管理とマルチターン会話
+- [x] Markdownレンダリング（react-markdown）
+- [ ] Syntax highlighting（react-syntax-highlighter - TODO）
+
+フェーズ3: Azure Container Apps デプロイ
+- [x] Dockerマルチステージビルド
+- [x] GitHub Actions CI/CD
+- [x] Azure Container Registry
+- [x] Azure Container Apps
+- [x] 本番環境デプロイ成功
