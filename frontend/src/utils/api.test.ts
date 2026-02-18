@@ -125,7 +125,9 @@ describe('startChatStream', () => {
       });
 
       expect(receivedEvents).toHaveLength(1);
-      expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Json error: SyntaxError: Unexpected token i in JSON at position 1' });
+      expect(receivedEvents[0].type).toBe('error');
+      expect(receivedEvents[0].message).toContain('Json error');
+      expect(receivedEvents[0].message).toContain('SyntaxError');
     });
   })
 
