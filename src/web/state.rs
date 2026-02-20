@@ -10,15 +10,18 @@ use crate::session::{ConversationHistory, DEFAULT_MAX_TURNS};
 pub struct AppState {
     /// The LLM agent (provider-agnostic)
     pub agent: Arc<AnyAgent>,
+    /// Bearer token required for API access
+    pub(crate) api_token: String,
     /// In-memory session store (session_id -> conversation history)
     sessions: Arc<Mutex<HashMap<String, ConversationHistory>>>,
 }
 
 impl AppState {
-    /// Create a new AppState with the given agent.
-    pub fn new(agent: AnyAgent) -> Self {
+    /// Create a new AppState with the given agent and API token.
+    pub fn new(agent: AnyAgent, api_token: String) -> Self {
         Self {
             agent: Arc::new(agent),
+            api_token,
             sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -102,7 +105,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_new_session_and_get_history() {
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
         let session_id = state.create_session();
 
         let history = state.get_session(session_id.as_str()).unwrap();
@@ -113,7 +116,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_multiple_user_messages() {
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
         let session_id = state.create_session();
 
         state.add_user_message(&session_id, "hello1");
@@ -126,7 +129,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_multiple_assistant_messages() {
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
         let session_id = state.create_session();
 
         state.add_assistant_message(&session_id, "hello1");
@@ -139,7 +142,7 @@ mod tests {
     #[tokio::test]
     async fn test_new_history_is_created_when_add_user_message_is_called_with_new_session_id() {
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
 
         state.add_user_message("nonexistent_session_id", "hello1");
 
@@ -151,7 +154,7 @@ mod tests {
     #[should_panic(expected = "session id does not exist")]
     async fn test_add_assistant_message_panics_when_session_does_not_exist() {
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
 
         // This should panic because the session doesn't exist
         state.add_assistant_message("nonexistent_session_id", "hello");
@@ -164,7 +167,7 @@ mod tests {
         // 2. Get conversation history
         // 3. Add assistant response
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
 
         let session_id = state.create_session();
 
@@ -193,7 +196,7 @@ mod tests {
         // Verify that get_session returns a clone, not a reference
         // Modifying the returned history should not affect the stored session
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
 
         let session_id = state.create_session();
         state.add_user_message(&session_id, "Hello");
@@ -214,7 +217,7 @@ mod tests {
     async fn test_multiple_sessions_are_independent() {
         // Verify that different sessions don't interfere with each other
         let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent);
+        let state = AppState::new(agent, "test-token".to_string());
 
         // Create two independent sessions
         let session1 = state.create_session();
