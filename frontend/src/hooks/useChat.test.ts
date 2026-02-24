@@ -17,7 +17,7 @@ describe('useChat', () => {
 
   describe('Initial state', () => {
     it('should have initial state', () => {
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
 
       expect(result.current.messages).toEqual([]);
       expect(result.current.isStreaming).toBe(false);
@@ -32,13 +32,14 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
       await act(async () => {
         result.current.sendMessage('test message');
       });
       expect(api.startChatStream).toHaveBeenCalledWith(
         { message: 'test message' },
-        expect.any(Function))
+        expect.any(Function),
+        'test-token')
       expect(result.current.isStreaming).toBeTruthy();
     });
 
@@ -49,7 +50,7 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
       await act(async () => {
         result.current.sendMessage('test message');
       });
@@ -65,7 +66,7 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
       await act(async () => {
         result.current.sendMessage('test message');
       });
@@ -84,7 +85,7 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
       await act(async () => {
         result.current.sendMessage('test message');
       });
@@ -99,7 +100,7 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
       await act(async () => {
         result.current.sendMessage('test message');
       });
@@ -110,7 +111,8 @@ describe('useChat', () => {
 
       expect(api.startChatStream).toHaveBeenCalledExactlyOnceWith(
         { message: 'test message' },
-        expect.any(Function))
+        expect.any(Function),
+        'test-token')
       expect(result.current.isStreaming).toBeTruthy();
     });
 
@@ -130,7 +132,7 @@ describe('useChat', () => {
           return () => { };
         });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
 
       // First message
       await act(async () => {
@@ -155,7 +157,7 @@ describe('useChat', () => {
         return () => { };
       });
 
-      const { result } = renderHook(() => useChat());
+      const { result } = renderHook(() => useChat('test-token'));
 
       await act(async () => {
         await result.current.sendMessage('test');

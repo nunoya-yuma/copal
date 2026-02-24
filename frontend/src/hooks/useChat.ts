@@ -9,6 +9,7 @@ import type { ChatRequest, Message } from '../types';
 /**
  * Custom hook for chat state management and message streaming.
  *
+ * @param token - Bearer token for API authentication
  * @returns {Object} Chat state and control functions
  * @returns {Message[]} messages - Array of confirmed chat messages (user and assistant)
  * @returns {string} currentResponse - Accumulated text of the currently streaming assistant response
@@ -16,7 +17,7 @@ import type { ChatRequest, Message } from '../types';
  * @returns {Function} sendMessage - Function to send a message and start streaming the response
  *
  * @example
- * const { messages, currentResponse, isStreaming, sendMessage } = useChat();
+ * const { messages, currentResponse, isStreaming, sendMessage } = useChat(token);
  *
  * // Send a message
  * await sendMessage("Hello!");
@@ -27,7 +28,7 @@ import type { ChatRequest, Message } from '../types';
  * // Show streaming response
  * {isStreaming && <div>{currentResponse}</div>}
  */
-export function useChat() {
+export function useChat(token: string) {
   // Confirmed message history (both user and assistant messages)
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -79,7 +80,7 @@ export function useChat() {
           console.error(`Invalid event type has arrived. Ignoring.`);
           break;
       }
-    });
+    }, token);
 
   };
 
