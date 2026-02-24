@@ -66,11 +66,18 @@ jobs:
               llm-provider="${{ secrets.LLM_PROVIDER }}" \
               openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
               gemini-api-key="${{ secrets.GEMINI_API_KEY }}" \
-              tavily-api-key="${{ secrets.TAVILY_API_KEY }}"
+              tavily-api-key="${{ secrets.TAVILY_API_KEY }}" \
+              copal-api-token="${{ secrets.COPAL_API_TOKEN }}"
 
       - name: Deploy to Azure Container Apps
         run: |
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              LLM_PROVIDER=secretref:llm-provider \
+              OPENAI_API_KEY=secretref:openai-api-key \
+              GEMINI_API_KEY=secretref:gemini-api-key \
+              TAVILY_API_KEY=secretref:tavily-api-key \
+              COPAL_API_TOKEN=secretref:copal-api-token
