@@ -33,7 +33,7 @@ describe('startChatStream', () => {
       const request: ChatRequest = { message: 'test' };
       await startChatStream(request, (event) => {
         receivedEvents.push(event);
-      });
+      }, 'test-token');
 
       expect(receivedEvents).toHaveLength(2);
       expect(receivedEvents[0]).toEqual({ type: 'text', content: 'Hello' });
@@ -63,7 +63,7 @@ describe('startChatStream', () => {
       const request: ChatRequest = { message: 'test' };
       await startChatStream(request, (event) => {
         receivedEvents.push(event);
-      });
+      }, 'test-token');
 
       expect(receivedEvents).toHaveLength(1);
       expect(receivedEvents[0]).toEqual({ type: 'text', content: 'Hello' });
@@ -79,7 +79,7 @@ describe('startChatStream', () => {
       const request: ChatRequest = { message: 'test' };
       await startChatStream(request, (event) => {
         receivedEvents.push(event);
-      });
+      }, 'test-token');
 
       expect(receivedEvents).toHaveLength(1);
       expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Network error: Error: connection error' });
@@ -98,7 +98,7 @@ describe('startChatStream', () => {
       const request: ChatRequest = { message: 'test' };
       await startChatStream(request, (event) => {
         receivedEvents.push(event);
-      });
+      }, 'test-token');
 
       expect(receivedEvents).toHaveLength(1);
       expect(receivedEvents[0]).toEqual({ type: 'error', message: 'Http post error: 404' });
@@ -122,7 +122,7 @@ describe('startChatStream', () => {
       const request: ChatRequest = { message: 'test' };
       await startChatStream(request, (event) => {
         receivedEvents.push(event);
-      });
+      }, 'test-token');
 
       expect(receivedEvents).toHaveLength(1);
       expect(receivedEvents[0].type).toBe('error');
@@ -152,7 +152,7 @@ describe('startChatStream', () => {
       (global.fetch as any).mockResolvedValue(mockResponse);
 
       const request: ChatRequest = { message: 'test' };
-      const cleanup = await startChatStream(request, () => { });
+      const cleanup = await startChatStream(request, () => { }, 'test-token');
 
       // Call the returned cleanup function
       cleanup();

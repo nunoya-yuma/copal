@@ -8,6 +8,7 @@ import type { ChatRequest, SseEvent } from '../types';
  *
  * @param request - The chat request containing the message and optional session_id
  * @param onEvent - Callback function invoked for each SSE event (text/done/error)
+ * @param token - Bearer token for API authentication
  * @returns A Promise resolving to a cleanup function that cancels the stream when called
  *
  * @example
@@ -31,7 +32,8 @@ import type { ChatRequest, SseEvent } from '../types';
  */
 export async function startChatStream(
   request: ChatRequest,
-  onEvent: (event: SseEvent) => void
+  onEvent: (event: SseEvent) => void,
+  token: string
 ): Promise<() => void> {
   let response;
   try {
@@ -39,6 +41,7 @@ export async function startChatStream(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(request),
     });
