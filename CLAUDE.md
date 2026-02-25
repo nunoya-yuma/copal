@@ -57,10 +57,22 @@ copal/
 │   │   ├── web.rs           # Webスクレイピング
 │   │   ├── robots.rs        # robots.txtキャッシュ（Arc共有）
 │   │   └── pdf.rs           # PDFテキスト抽出
-│   └── llm/                 # LLMクライアント
+│   ├── llm/                 # LLMクライアント
+│   │   ├── mod.rs
+│   │   ├── client.rs        # クライアントインターフェース
+│   │   └── rig_client.rs    # rig-core実装
+│   └── web/                 # Webバックエンド（feature "web" でゲート）
 │       ├── mod.rs
-│       ├── client.rs        # クライアントインターフェース
-│       └── rig_client.rs    # rig-core実装
+│       ├── auth.rs          # Bearer token認証ミドルウェア
+│       └── ...
+├── frontend/                # React + TypeScript フロントエンド
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── components/      # UIコンポーネント
+│       ├── hooks/           # カスタムフック（useChat, useAuth）
+│       └── utils/           # API通信など
 └── docs/
     └── design.md            # アーキテクチャ設計
 ```
@@ -68,14 +80,17 @@ copal/
 ## 開発コマンド
 
 ```bash
-# 実行（インタラクティブモード）
+# 実行（CLIモード、デフォルト）
 cargo run
 
-# テスト
+# 実行（Webサーバーモード、ポート3000）
+cargo run --no-default-features --features web
+
+# テスト（全機能）
 cargo test
 
-# CLI依存なしでテスト（コアモジュールのみ）
-cargo test --no-default-features
+# テスト（Webモード）
+cargo test --no-default-features --features web
 
 # フォーマット
 cargo fmt
@@ -85,6 +100,19 @@ cargo clippy
 
 # リリースビルド
 cargo build --release
+```
+
+### フロントエンド
+
+```bash
+cd frontend
+
+npm ci               # 依存関係インストール
+npm run dev          # 開発サーバー起動（localhost:5173）
+npm run typecheck    # 型チェック
+npm run test:ci      # テスト（1回実行）
+npm run test         # テスト（ウォッチモード）
+npm run build        # 本番ビルド → frontend/dist/
 ```
 
 ## プロバイダー設定
@@ -97,6 +125,8 @@ cargo build --release
 | `LLM_MODEL` | モデル名 | プロバイダーごとのデフォルト |
 | `OPENAI_API_KEY` | OpenAI APIキー | - |
 | `GEMINI_API_KEY` | Gemini APIキー | - |
+| `COPAL_API_TOKEN` | Bearer認証トークン（Webモード必須） | - |
+| `TAVILY_API_KEY` | Tavily Web検索APIキー | - |
 
 ## デプロイ情報
 
@@ -150,3 +180,5 @@ git push origin main
 - [x] Azure Container Registry
 - [x] Azure Container Apps
 - [x] 本番環境デプロイ成功
+- [x] Bearer token認証（COPAL_API_TOKEN）
+- [x] フロントエンドCI（typecheck / test / build）
