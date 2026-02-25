@@ -13,24 +13,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Run Rust tests
-        run: cargo test --no-default-features --features web
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      - name: Run frontend tests
-        run: |
-          cd frontend
-          npm ci
-          npm run test:ci
+    uses: ./.github/workflows/test.yml
 
   build-and-deploy:
     needs: test  # Only deploy if tests pass
