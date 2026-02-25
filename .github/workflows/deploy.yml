@@ -30,7 +30,7 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm test
+          npm run test:ci
 
   build-and-deploy:
     needs: test  # Only deploy if tests pass
