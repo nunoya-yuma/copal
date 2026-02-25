@@ -43,7 +43,7 @@ Features:
 ### Web server mode
 
 ```shell
-cargo run --no-default-features --features web
+cargo web
 ```
 
 Starts the API server at `http://localhost:3000`. Requires `COPAL_API_TOKEN` to be set in `.env`.

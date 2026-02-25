@@ -84,13 +84,13 @@ copal/
 cargo run
 
 # 実行（Webサーバーモード、ポート3000）
-cargo run --no-default-features --features web
+cargo web   # = cargo run --no-default-features --features web
 
 # テスト（全機能）
 cargo test
 
 # テスト（Webモード）
-cargo test --no-default-features --features web
+cargo test-web  # = cargo test --no-default-features --features web
 
 # フォーマット
 cargo fmt
