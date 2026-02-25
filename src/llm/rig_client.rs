@@ -36,8 +36,9 @@ impl LlmClient for RigClient {
             content: OneOrMany::one(rig::message::UserContent::text(prompt)),
         };
 
-        // In rig 0.28, prompt is the last message in chat_history
         let req = CompletionRequest {
+            model: None,
+            output_schema: None,
             preamble: None,
             chat_history: OneOrMany::one(user_message),
             documents: vec![],
