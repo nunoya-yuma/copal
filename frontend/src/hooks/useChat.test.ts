@@ -21,6 +21,7 @@ describe('useChat', () => {
 
       expect(result.current.messages).toEqual([]);
       expect(result.current.isStreaming).toBe(false);
+      expect(result.current.errorMessage).toBeNull();
       expect(result.current.currentResponse).toBe('');
     });
   });
@@ -90,6 +91,47 @@ describe('useChat', () => {
         result.current.sendMessage('test message');
       });
 
+      expect(result.current.isStreaming).toBeFalsy();
+      expect(result.current.errorMessage).toBe('Unexpected error has occurred.');
+    });
+
+    it('should clear error message', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+        onEvent({ type: 'error', message: 'test error message' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+      await act(async () => {
+        result.current.sendMessage('test message');
+      });
+      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+        onEvent({ type: 'text', content: 'Hello from agent' });
+        return () => { };
+      });
+
+      await act(async () => {
+        result.current.sendMessage('test message');
+      });
+
+      expect(result.current.errorMessage).toBeNull();
+
+    });
+
+    it('should handle authentication(401) error', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+        onEvent({ type: 'error', message: '401 error' });
+        return () => { };
+      });
+
+      const onAuthError = vi.fn();
+
+      const { result } = renderHook(() => useChat('test-token', onAuthError));
+      await act(async () => {
+        result.current.sendMessage('test message');
+      });
+
+      expect(onAuthError).toHaveBeenCalledOnce();
+      expect(result.current.errorMessage).toBeNull();
       expect(result.current.isStreaming).toBeFalsy();
     });
 
