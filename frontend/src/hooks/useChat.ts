@@ -10,14 +10,17 @@ import type { ChatRequest, Message } from '../types';
  * Custom hook for chat state management and message streaming.
  *
  * @param token - Bearer token for API authentication
+ * @param onAuthError - Optional callback invoked when the server returns 401.
+ *                      Typically used to clear the token and return to the login screen.
  * @returns {Object} Chat state and control functions
  * @returns {Message[]} messages - Array of confirmed chat messages (user and assistant)
  * @returns {string} currentResponse - Accumulated text of the currently streaming assistant response
  * @returns {boolean} isStreaming - Flag indicating if a response is currently being streamed
+ * @returns {string | null} errorMessage - User-facing error message for non-auth errors, or null
  * @returns {Function} sendMessage - Function to send a message and start streaming the response
  *
  * @example
- * const { messages, currentResponse, isStreaming, sendMessage } = useChat(token);
+ * const { messages, currentResponse, isStreaming, errorMessage, sendMessage } = useChat(token, clearToken);
  *
  * // Send a message
  * await sendMessage("Hello!");
@@ -27,8 +30,11 @@ import type { ChatRequest, Message } from '../types';
  *
  * // Show streaming response
  * {isStreaming && <div>{currentResponse}</div>}
+ *
+ * // Show error message
+ * {errorMessage && <div>{errorMessage}</div>}
  */
-export function useChat(token: string) {
+export function useChat(token: string, onAuthError?: () => void) {
   // Confirmed message history (both user and assistant messages)
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -42,8 +48,12 @@ export function useChat(token: string) {
   // Buffer for accumulating streamed assistant response (text events)
   const [currentResponse, setCurrentResponse] = useState('');
 
+  // Error message to display in the UI (null when no error)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const sendMessage = async (content: string) => {
     if (isStreaming) return;
+    setErrorMessage(null);
 
     const userMessage: Message = { role: 'user', content, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMessage]);
@@ -74,6 +84,12 @@ export function useChat(token: string) {
         case 'error':
           console.error(`Error event has been received. ${event.message}`);
           setIsStreaming(false);
+          if (event.message.includes("401")) {
+            onAuthError?.();
+          }
+          else {
+            setErrorMessage("Unexpected error has occurred.");
+          }
           break;
 
         default:
@@ -84,5 +100,5 @@ export function useChat(token: string) {
 
   };
 
-  return { messages, currentResponse, isStreaming, sendMessage };
+  return { messages, currentResponse, isStreaming, errorMessage, sendMessage };
 }
