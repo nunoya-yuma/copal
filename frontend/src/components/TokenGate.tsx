@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import React, { useState } from 'react';
 
 interface TokenGateProps {
   onSubmit: (token: string) => void;
@@ -6,12 +6,32 @@ interface TokenGateProps {
 
 export function TokenGate({ onSubmit }: TokenGateProps) {
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     const token = input.trim();
     if (!token) return;
-    onSubmit(token);
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/verify', { headers: { Authorization: `Bearer ${token}` } });
+      if (response.ok) {
+        onSubmit(token);
+      } else {
+        setError('トークンが無効です。');
+      }
+    } catch (e) {
+      console.error('Token verification failed:', e);
+      setError('トークンの送信に失敗しました。');
+    }
+    finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -26,8 +46,9 @@ export function TokenGate({ onSubmit }: TokenGateProps) {
           placeholder="Bearer token"
           autoFocus
         />
-        <button type="submit" disabled={!input.trim()}>
-          接続
+        {error && <p className="token-gate-error">{error}</p>}
+        <button type="submit" disabled={!input.trim() || isLoading}>
+          {isLoading ? '確認中...' : '接続'}
         </button>
       </form>
     </div>

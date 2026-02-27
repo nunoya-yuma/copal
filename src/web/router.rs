@@ -1,5 +1,13 @@
-use crate::web::{auth::require_bearer_token, handlers::chat_handler, AppState};
-use axum::{middleware, routing::post, Router};
+use crate::web::{
+    auth::require_bearer_token,
+    handlers::{chat_handler, verify_handler},
+    AppState,
+};
+use axum::{
+    middleware,
+    routing::{get, post},
+    Router,
+};
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
@@ -7,6 +15,7 @@ use tower_http::services::ServeDir;
 /// Build the Axum router with all routes and middleware
 ///
 /// # Routes
+/// - GET /api/verify - Token validation endpoint (Bearer token required)
 /// - POST /api/chat - SSE streaming chat endpoint (Bearer token required)
 /// - GET / - Serve static files from frontend/dist (no auth required)
 ///
@@ -20,6 +29,7 @@ use tower_http::services::ServeDir;
 /// explicitly registered routes (`/api/chat`), leaving static file serving open.
 pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/api/verify", get(verify_handler))
         .route("/api/chat", post(chat_handler))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&state),
