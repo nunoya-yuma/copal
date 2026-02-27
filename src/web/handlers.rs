@@ -74,7 +74,16 @@ async fn chat_stream(
         }
     });
 
-    rx.map(|event| Ok(event))
+    rx.map(Ok)
+}
+
+/// Verify handler that confirms a Bearer token is valid
+///
+/// This handler itself does nothing—the `require_bearer_token` middleware
+/// already rejected any invalid tokens before reaching here.
+/// Returning 200 OK is sufficient to tell the client "your token works".
+pub async fn verify_handler() -> axum::http::StatusCode {
+    axum::http::StatusCode::OK
 }
 
 /// Chat handler that streams responses via Server-Sent Events (SSE)
