@@ -22,6 +22,15 @@ describe('ChatMessage', () => {
       const messageDiv = element.closest('.message');
       expect(messageDiv).toHaveClass('user');
     });
+
+    it('should render **bold** text as plain text', () => {
+      const sut: Message = { role: 'user', content: '**bold** text', timestamp: Date.now() };
+
+      const { container } = render(<ChatMessage message={sut} />);
+
+      expect(screen.getByText('**bold** text')).toBeInTheDocument();
+      expect(container.querySelector('strong')).not.toBeInTheDocument();
+    });
   });
 
   describe('Assistant messages', () => {
@@ -48,11 +57,30 @@ describe('ChatMessage', () => {
     it('should render code blocks', () => {
       const message: Message = { role: 'assistant', content: '```js\nconst x = 1;\n```', timestamp: Date.now() };
 
-      render(<ChatMessage message={message} />);
+      const { container } = render(<ChatMessage message={message} />);
 
       // Verify code block is rendered (syntax highlighting verified manually in browser)
-      const preElement = screen.getByText('const x = 1;').closest('pre');
-      expect(preElement).toBeInTheDocument();
+      const codeBlock = container.querySelector('pre code.language-js');
+      expect(codeBlock).toBeInTheDocument();
+    });
+
+    it('should render code block without language as plain code element', () => {
+      const sut: Message = { role: 'assistant', content: '```\nplain code\n```', timestamp: Date.now() };
+
+      const { container } = render(<ChatMessage message={sut} />);
+
+      const codeBlock = container.querySelector('pre code');
+      expect(codeBlock).toBeInTheDocument();
+    });
+
+    it('should render inline code as a code element', () => {
+      const sut: Message = { role: 'assistant', content: 'use `useState` hook', timestamp: Date.now() };
+
+      const { container } = render(<ChatMessage message={sut} />);
+
+      const inlineCode = container.querySelector('code');
+      expect(inlineCode).toBeInTheDocument();
+      expect(inlineCode?.textContent).toBe('useState');
     });
   });
 });
