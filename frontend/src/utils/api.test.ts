@@ -134,6 +134,24 @@ describe('startChatStream', () => {
     });
   })
 
+  describe('Abort handling', () => {
+    it('should not emit any event when the request is aborted', async () => {
+      const signal = AbortSignal.abort();
+
+      let AbortError = new Error('Abort error');
+      AbortError.name = 'AbortError';
+      (global.fetch as any).mockRejectedValue(AbortError);
+
+      const receivedEvents: SseEvent[] = [];
+      const request: ChatRequest = { message: 'test' };
+      await startChatStream(request, (event) => {
+        receivedEvents.push(event);
+      }, 'test-token', signal);
+
+      expect(receivedEvents).toHaveLength(0);
+    });
+  });
+
   describe('Clean up', () => {
     it('should return a cleanup function that cancels the reader', async () => {
       // Create a mock cancel function to verify it's called

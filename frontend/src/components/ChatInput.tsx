@@ -2,10 +2,12 @@ import { useState, FormEvent, KeyboardEvent } from 'react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop: () => void;
   disabled: boolean;
+  isStreaming: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
 
   const handleSubmit = (e: FormEvent) => {
@@ -33,9 +35,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         placeholder="メッセージを入力..."
         disabled={disabled}
       />
-      <button type="submit" disabled={disabled || !input.trim()}>
-        送信
-      </button>
+      {
+        isStreaming
+          ? <button type="button" onClick={onStop}>停止</button>
+          : <button type="submit" disabled={disabled || !input.trim()}>送信</button>
+      }
+
     </form>
   );
 }

@@ -33,7 +33,8 @@ import type { ChatRequest, SseEvent } from '../types';
 export async function startChatStream(
   request: ChatRequest,
   onEvent: (event: SseEvent) => void,
-  token: string
+  token: string,
+  signal?: AbortSignal
 ): Promise<() => void> {
   let response;
   try {
@@ -44,8 +45,12 @@ export async function startChatStream(
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(request),
+      signal,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return () => { };
+    }
     onEvent({ type: "error", message: `Network error: ${error}` });
     return () => { };
   }
@@ -59,36 +64,36 @@ export async function startChatStream(
   }
 
   const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
+  async function streaming_loop(reader: ReadableStreamDefaultReader) {
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-  // TODO: Refactor - Extract readLoop as a separate async function and run in background
-  // This would allow startChatStream to return immediately while continuing to read the stream.
-  // Note: Requires updating tests to handle async timing (e.g., setTimeout or Promise resolution)
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        let event;
-        try {
-          event = JSON.parse(data);
-        } catch (error) {
-          onEvent({ type: "error", message: `Json error: ${error}` });
-          return () => { };
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          let event;
+          try {
+            event = JSON.parse(data);
+          } catch (error) {
+            onEvent({ type: "error", message: `Json error: ${error}` });
+            return;
+          }
+          onEvent(event);
         }
-        onEvent(event);
       }
     }
   }
+  await streaming_loop(reader);
 
   return () => reader.cancel();
 }
