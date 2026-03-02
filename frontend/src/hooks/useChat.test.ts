@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useChat } from './useChat';
 import * as api from '../utils/api';
 
@@ -23,12 +23,86 @@ describe('useChat', () => {
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.errorMessage).toBeNull();
       expect(result.current.currentResponse).toBe('');
+      expect(result.current.stopGeneration).toBeTypeOf('function');
+    });
+  });
+
+  describe('stopGeneration', () => {
+    it('should not throw when called while not streaming', () => {
+      const { result } = renderHook(() => useChat('test-token'));
+
+      expect(() => result.current.stopGeneration()).not.toThrow();
+    });
+
+    it('should retain user message in messages after stopping', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'text', content: 'Partial response' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { result.current.sendMessage('test message'); });
+      await act(async () => { result.current.stopGeneration(); });
+
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]).toMatchObject({ role: 'user', content: 'test message' });
+    });
+
+    it('should allow sending a new message after stopping', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'text', content: 'Partial' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { result.current.sendMessage('first message'); });
+      await act(async () => { result.current.stopGeneration(); });
+      await act(async () => { result.current.sendMessage('second message'); });
+
+      expect(api.startChatStream).toHaveBeenCalledTimes(2);
+    });
+
+    it('should set isStreaming to false when called during streaming', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, _onEvent) => {
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+      await act(async () => {
+        result.current.sendMessage('test message');
+      });
+      await act(async () => {
+        result.current.stopGeneration();
+      });
+
+      expect(result.current.isStreaming).toBeFalsy();
+    });
+
+    it('should clear currentResponse when called during streaming', async () => {
+      // TODO(human)
+      // 1. Mock startChatStream to emit a text event then hang
+      // 2. Call sendMessage and verify currentResponse has content
+      // 3. Call stopGeneration inside act()
+      // 4. Verify currentResponse becomes empty string
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'text', content: 'Hello from agent' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+      await act(async () => {
+        result.current.sendMessage('test message');
+      });
+      await act(async () => {
+        result.current.stopGeneration();
+      });
+
+      expect(result.current.currentResponse).toBe('');
+
     });
   });
 
   describe('sendMessage', () => {
     it('should add user message and start streaming', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello from agent' });
         return () => { };
       });
@@ -40,13 +114,14 @@ describe('useChat', () => {
       expect(api.startChatStream).toHaveBeenCalledWith(
         { message: 'test message' },
         expect.any(Function),
-        'test-token')
+        'test-token',
+        expect.any(AbortSignal))
       expect(result.current.isStreaming).toBeTruthy();
     });
 
     it('should handle text events and update currentResponse', async () => {
       // Simulate startChatStream calling onEvent with { type: 'text', content: '...' }
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello from agent' });
         return () => { };
       });
@@ -61,7 +136,7 @@ describe('useChat', () => {
 
     it('should handle done event and save session', async () => {
       // Simulate done event, verify sessionId saved and assistant message added
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello from agent' });
         onEvent({ type: 'done', session_id: 'testsessionid' });
         return () => { };
@@ -81,7 +156,7 @@ describe('useChat', () => {
     });
 
     it('should handle error events', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'error', message: 'test error message' });
         return () => { };
       });
@@ -96,7 +171,7 @@ describe('useChat', () => {
     });
 
     it('should clear error message', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'error', message: 'test error message' });
         return () => { };
       });
@@ -104,7 +179,7 @@ describe('useChat', () => {
       await act(async () => {
         result.current.sendMessage('test message');
       });
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello from agent' });
         return () => { };
       });
@@ -118,7 +193,7 @@ describe('useChat', () => {
     });
 
     it('should handle authentication(401) error', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'error', message: '401 error' });
         return () => { };
       });
@@ -137,7 +212,7 @@ describe('useChat', () => {
 
     it('should prevent double sending when streaming', async () => {
       // Call sendMessage twice quickly, verify startChatStream called only once
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello from agent' });
         return () => { };
       });
@@ -154,7 +229,8 @@ describe('useChat', () => {
       expect(api.startChatStream).toHaveBeenCalledExactlyOnceWith(
         { message: 'test message' },
         expect.any(Function),
-        'test-token')
+        'test-token',
+        expect.any(AbortSignal))
       expect(result.current.isStreaming).toBeTruthy();
     });
 
@@ -191,7 +267,7 @@ describe('useChat', () => {
 
     it('should accumulate multiple text events', async () => {
       // Verify that multiple text events are concatenated correctly
-      vi.mocked(api.startChatStream).mockImplementation(async (request, onEvent) => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
         onEvent({ type: 'text', content: 'Hello ' });
         onEvent({ type: 'text', content: 'World' });
         onEvent({ type: 'text', content: '!' });

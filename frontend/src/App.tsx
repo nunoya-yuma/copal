@@ -7,7 +7,7 @@ import './App.css';
 
 function App() {
   const { token, setToken, clearToken, isAuthenticated } = useAuth();
-  const { messages, currentResponse, isStreaming, errorMessage, sendMessage } = useChat(token, clearToken);
+  const { messages, currentResponse, isStreaming, errorMessage, sendMessage, stopGeneration } = useChat(token, clearToken);
 
   if (!isAuthenticated) {
     return <TokenGate onSubmit={setToken} />;
@@ -29,7 +29,7 @@ function App() {
       </main>
       {errorMessage && <div className="error-message">{errorMessage}</div>}
       <footer>
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
+        <ChatInput onSend={sendMessage} onStop={stopGeneration} disabled={isStreaming} isStreaming={isStreaming} />
       </footer>
     </div>
   );

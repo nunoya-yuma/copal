@@ -2,7 +2,7 @@
  * Custom hook for managing chat functionality with SSE-based streaming.
  * Handles message state, session management, and real-time streaming responses.
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { startChatStream } from '../utils/api';
 import type { ChatRequest, Message } from '../types';
 
@@ -45,6 +45,9 @@ export function useChat(token: string, onAuthError?: () => void) {
   // Flag to prevent concurrent message sending
   const [isStreaming, setIsStreaming] = useState(false);
 
+  // Ref to the AbortController for the currently in-flight stream
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Buffer for accumulating streamed assistant response (text events)
   const [currentResponse, setCurrentResponse] = useState('');
 
@@ -62,11 +65,13 @@ export function useChat(token: string, onAuthError?: () => void) {
     setCurrentResponse('');
 
     let accumulatedText = '';
-    let request: ChatRequest = {
+    const request: ChatRequest = {
       ...(sessionId && { session_id: sessionId }),
       message: userMessage.content
     };
-    const cleanup = await startChatStream(request, (event) => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    await startChatStream(request, (event) => {
       switch (event.type) {
         case 'text':
           setCurrentResponse((prev) => prev + event.content);
@@ -96,9 +101,15 @@ export function useChat(token: string, onAuthError?: () => void) {
           console.error(`Invalid event type has arrived. Ignoring.`);
           break;
       }
-    }, token);
+    }, token, controller.signal);
 
   };
 
-  return { messages, currentResponse, isStreaming, errorMessage, sendMessage };
+  const stopGeneration = () => {
+    abortControllerRef.current?.abort();
+    setIsStreaming(false);
+    setCurrentResponse('');
+  };
+
+  return { messages, currentResponse, isStreaming, errorMessage, sendMessage, stopGeneration };
 }
