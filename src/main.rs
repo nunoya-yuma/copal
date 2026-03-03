@@ -28,7 +28,7 @@ async fn main() {
         assert!(!api_token.is_empty(), "COPAL_API_TOKEN must not be empty");
         let web_fetch = WebFetch::new();
         let agent = AnyAgent::from_env(web_fetch);
-        let app_state = AppState::new(agent, api_token);
+        let app_state = AppState::new(Arc::new(agent), api_token);
         let router = build_router(Arc::new(app_state));
 
         // Read PORT from environment (Azure Container Apps injects this dynamically)
