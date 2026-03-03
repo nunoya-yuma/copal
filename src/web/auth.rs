@@ -44,7 +44,7 @@ pub async fn require_bearer_token(
 #[cfg(test)]
 mod tests {
     use super::require_bearer_token;
-    use crate::agent::{AnyAgent, WebFetch};
+    use crate::agent::MockAgent;
     use crate::web::AppState;
     use axum::{
         body::Body,
@@ -58,7 +58,7 @@ mod tests {
 
     fn test_router(token: &str) -> Router {
         let state = Arc::new(AppState::new(
-            AnyAgent::from_env(WebFetch::new()),
+            Arc::new(MockAgent::with_response("")),
             token.to_string(),
         ));
         Router::new()

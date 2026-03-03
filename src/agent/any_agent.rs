@@ -1,6 +1,7 @@
 use std::env;
 use std::pin::Pin;
 
+use async_trait::async_trait;
 use futures::Stream;
 use futures::StreamExt;
 use rig::agent::Agent;
@@ -13,7 +14,8 @@ use rig::streaming::StreamedAssistantContent;
 use rig::streaming::StreamingChat;
 
 use super::{
-    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, WebFetch,
+    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, ChatAgent,
+    WebFetch,
 };
 
 /// Provider-agnostic stream event emitted by `AnyAgent::stream_chat`.
@@ -65,7 +67,7 @@ impl AnyAgent {
     /// # Arguments
     /// * `prompt` - The user's message
     /// * `history` - Conversation history (cloned from ConversationHistory::to_vec())
-    pub async fn stream_chat(
+    async fn stream_chat_inner(
         &self,
         prompt: &str,
         history: Vec<Message>,
@@ -76,6 +78,7 @@ impl AnyAgent {
             AnyAgent::OpenAi(agent) => Self::map_stream(agent.stream_chat(prompt, history).await),
         }
     }
+
     fn map_stream<R: Send + 'static>(
         stream: rig::agent::StreamingResult<R>,
     ) -> Pin<Box<dyn Stream<Item = ChatStreamEvent> + Send>> {
@@ -92,9 +95,22 @@ impl AnyAgent {
         Box::pin(mapped)
     }
 }
+
+#[async_trait]
+impl ChatAgent for AnyAgent {
+    async fn stream_chat(
+        &self,
+        prompt: &str,
+        history: Vec<Message>,
+    ) -> Pin<Box<dyn Stream<Item = ChatStreamEvent> + Send>> {
+        self.stream_chat_inner(prompt, history).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::ChatAgent;
 
     #[tokio::test]
     #[ignore]

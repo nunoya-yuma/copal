@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::agent::AnyAgent;
+use crate::agent::ChatAgent;
 use crate::session::{ConversationHistory, DEFAULT_MAX_TURNS};
 
 /// Shared application state for the web server.
 /// Cloned across all request handlers via Axum's State extractor.
 #[derive(Clone)]
 pub struct AppState {
-    /// The LLM agent (provider-agnostic)
-    pub agent: Arc<AnyAgent>,
+    /// The LLM agent (provider-agnostic, behind a trait object)
+    pub agent: Arc<dyn ChatAgent>,
     /// Bearer token required for API access
     pub(crate) api_token: String,
     /// In-memory session store (session_id -> conversation history)
@@ -18,9 +18,9 @@ pub struct AppState {
 
 impl AppState {
     /// Create a new AppState with the given agent and API token.
-    pub fn new(agent: AnyAgent, api_token: String) -> Self {
+    pub fn new(agent: Arc<dyn ChatAgent>, api_token: String) -> Self {
         Self {
-            agent: Arc::new(agent),
+            agent,
             api_token,
             sessions: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -100,12 +100,18 @@ impl AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::WebFetch;
+    use crate::agent::MockAgent;
+
+    fn make_state() -> AppState {
+        AppState::new(
+            Arc::new(MockAgent::with_response("")),
+            "test-token".to_string(),
+        )
+    }
 
     #[tokio::test]
     async fn test_create_new_session_and_get_history() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
         let session_id = state.create_session();
 
         let history = state.get_session(session_id.as_str()).unwrap();
@@ -115,8 +121,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_multiple_user_messages() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
         let session_id = state.create_session();
 
         state.add_user_message(&session_id, "hello1");
@@ -128,8 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_multiple_assistant_messages() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
         let session_id = state.create_session();
 
         state.add_assistant_message(&session_id, "hello1");
@@ -141,8 +145,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_history_is_created_when_add_user_message_is_called_with_new_session_id() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
 
         state.add_user_message("nonexistent_session_id", "hello1");
 
@@ -153,8 +156,7 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "session id does not exist")]
     async fn test_add_assistant_message_panics_when_session_does_not_exist() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
 
         // This should panic because the session doesn't exist
         state.add_assistant_message("nonexistent_session_id", "hello");
@@ -162,13 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_typical_conversation_flow() {
-        // Test the recommended usage pattern from the docstring:
-        // 1. Add user message (creates session if needed)
-        // 2. Get conversation history
-        // 3. Add assistant response
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
-
+        let state = make_state();
         let session_id = state.create_session();
 
         // Step 1: User sends a message
@@ -193,11 +189,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_session_returns_independent_copy() {
-        // Verify that get_session returns a clone, not a reference
-        // Modifying the returned history should not affect the stored session
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
-
+        let state = make_state();
         let session_id = state.create_session();
         state.add_user_message(&session_id, "Hello");
 
@@ -210,38 +202,30 @@ mod tests {
         // Verify the original session is unchanged
         let locked = state.sessions.lock().unwrap();
         assert_eq!(locked.get(&session_id).unwrap().len(), 1);
-        // The copy was modified (2 messages), but the original still has 1
     }
 
     #[tokio::test]
     async fn test_multiple_sessions_are_independent() {
-        // Verify that different sessions don't interfere with each other
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = AppState::new(agent, "test-token".to_string());
+        let state = make_state();
 
-        // Create two independent sessions
         let session1 = state.create_session();
         let session2 = state.create_session();
 
-        // Add different messages to each session
         state.add_user_message(&session1, "Session 1 message 1");
         state.add_user_message(&session1, "Session 1 message 2");
-
         state.add_user_message(&session2, "Session 2 message 1");
 
-        // Verify independence
         {
             let locked = state.sessions.lock().unwrap();
             assert_eq!(locked.get(&session1).unwrap().len(), 2);
             assert_eq!(locked.get(&session2).unwrap().len(), 1);
         }
 
-        // Add more to session2, verify session1 is unaffected
         state.add_assistant_message(&session2, "Session 2 response");
         {
             let locked = state.sessions.lock().unwrap();
-            assert_eq!(locked.get(&session1).unwrap().len(), 2); // Still 2
-            assert_eq!(locked.get(&session2).unwrap().len(), 2); // Now 2
+            assert_eq!(locked.get(&session1).unwrap().len(), 2);
+            assert_eq!(locked.get(&session2).unwrap().len(), 2);
         }
     }
 }

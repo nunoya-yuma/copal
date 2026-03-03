@@ -112,21 +112,20 @@ pub async fn chat_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::{AnyAgent, WebFetch};
+    use crate::agent::{ChatStreamEvent, MockAgent};
     use crate::web::AppState;
 
+    fn make_state(agent: MockAgent) -> Arc<AppState> {
+        Arc::new(AppState::new(Arc::new(agent), "test-token".to_string()))
+    }
+
     #[tokio::test]
-    #[ignore] // Requires LLM API key (not available in CI)
-    async fn test_chat_handler_saves_assistant_response_to_history() {
-        // Setup
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = Arc::new(AppState::new(agent, "test-token".to_string()));
+    async fn test_chat_saves_assistant_response_to_history() {
+        let state = make_state(MockAgent::with_response("Hello from mock!"));
         let session_id = state.create_session();
 
-        // Add user message (normally done by chat_handler)
         state.add_user_message(&session_id, "test message");
 
-        // Call internal stream function (testable)
         let mut stream = chat_stream(
             state.clone(),
             session_id.clone(),
@@ -135,7 +134,7 @@ mod tests {
         .await;
 
         // Consume entire stream (simulate client)
-        while let Some(_) = stream.next().await {}
+        while stream.next().await.is_some() {}
 
         // Wait for spawned task to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -150,48 +149,74 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires LLM API key (not available in CI)
     async fn test_multi_turn_conversation_preserves_context() {
-        let agent = AnyAgent::from_env(WebFetch::new());
-        let state = Arc::new(AppState::new(agent, "test-token".to_string()));
+        // Two queued responses: one per turn
+        let state = make_state(MockAgent::new(vec![
+            vec![
+                ChatStreamEvent::TextDelta("First response".to_string()),
+                ChatStreamEvent::Done,
+            ],
+            vec![
+                ChatStreamEvent::TextDelta("Second response".to_string()),
+                ChatStreamEvent::Done,
+            ],
+        ]));
         let session_id = state.create_session();
 
-        // Add user message (normally done by chat_handler)
-        state.add_user_message(&session_id, "test message");
-
-        // Call internal stream function (testable)
-        let mut stream_first = chat_stream(
+        // Turn 1
+        state.add_user_message(&session_id, "first message");
+        let mut s1 = chat_stream(
             state.clone(),
             session_id.clone(),
-            "test message".to_string(),
+            "first message".to_string(),
         )
         .await;
+        while s1.next().await.is_some() {}
 
-        // Consume entire stream (simulate client)
-        while let Some(_) = stream_first.next().await {}
-
-        // Add user message (normally done by chat_handler)
-        state.add_user_message(&session_id, "test message");
-
-        // Call internal stream function (testable)
-        let mut stream_second = chat_stream(
+        // Turn 2
+        state.add_user_message(&session_id, "second message");
+        let mut s2 = chat_stream(
             state.clone(),
             session_id.clone(),
-            "test message".to_string(),
+            "second message".to_string(),
         )
         .await;
+        while s2.next().await.is_some() {}
 
-        // Consume entire stream (simulate client)
-        while let Some(_) = stream_second.next().await {}
-        // Wait for spawned task to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Verify: history should have 2 messages (user + assistant)
         let history = state.get_session(&session_id).unwrap();
         assert_eq!(
             history.len(),
             4,
-            "Should have 4 messages (user message + assistant response * 2)"
+            "Should have 4 messages (user+assistant × 2)"
         );
+    }
+
+    #[tokio::test]
+    async fn test_chat_propagates_agent_error_event() {
+        let state = make_state(MockAgent::with_error("llm exploded"));
+        let session_id = state.create_session();
+
+        state.add_user_message(&session_id, "test message");
+
+        let mut stream = chat_stream(
+            state.clone(),
+            session_id.clone(),
+            "test message".to_string(),
+        )
+        .await;
+
+        // Collect all SSE events to find the error event
+        let mut found_error = false;
+        while let Some(Ok(event)) = stream.next().await {
+            // The Event's data should contain the error JSON
+            let data = format!("{:?}", event);
+            if data.contains("llm exploded") {
+                found_error = true;
+            }
+        }
+
+        assert!(found_error, "Should have received an error SSE event");
     }
 }
