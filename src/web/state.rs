@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::agent::ChatAgent;
-use crate::session::{ConversationHistory, DEFAULT_MAX_TURNS};
+use crate::session::{ConversationHistory, DEFAULT_MAX_HISTORY_TURNS};
 
 /// Shared application state for the web server.
 /// Cloned across all request handlers via Axum's State extractor.
@@ -30,7 +30,7 @@ impl AppState {
     /// The session is initialized with empty conversation history.
     pub fn create_session(&self) -> String {
         let id = uuid::Uuid::new_v4().to_string();
-        let new_history = ConversationHistory::new(DEFAULT_MAX_TURNS);
+        let new_history = ConversationHistory::new(DEFAULT_MAX_HISTORY_TURNS);
         {
             let mut locked = self.sessions.lock().unwrap();
             locked.insert(id.clone(), new_history);
@@ -70,7 +70,7 @@ impl AppState {
         let mut locked = self.sessions.lock().unwrap();
         let history = locked
             .entry(session_id.to_string())
-            .or_insert_with(|| ConversationHistory::new(DEFAULT_MAX_TURNS));
+            .or_insert_with(|| ConversationHistory::new(DEFAULT_MAX_HISTORY_TURNS));
         history.add_user(message);
     }
 

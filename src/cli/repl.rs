@@ -11,7 +11,7 @@ use std::io::{self, Write};
 
 use super::render::{render_markdown, try_clear_lines};
 use crate::session::ConversationHistory;
-use crate::session::DEFAULT_MAX_TURNS;
+use crate::session::DEFAULT_MAX_HISTORY_TURNS;
 
 const PROMPT: &str = "> ";
 const HISTORY_FILE: &str = ".copal_history";
@@ -30,7 +30,7 @@ where
     _ = rl.load_history(HISTORY_FILE);
 
     // Conversation history for multi-turn context
-    let mut conversation_history = ConversationHistory::new(DEFAULT_MAX_TURNS);
+    let mut conversation_history = ConversationHistory::new(DEFAULT_MAX_HISTORY_TURNS);
 
     loop {
         let input = match rl.readline(PROMPT) {
