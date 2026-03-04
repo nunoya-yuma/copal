@@ -18,6 +18,7 @@ pub fn create_ollama_agent(model: &str, web_fetch: WebFetch) -> Agent<ollama::Co
     client
         .agent(model)
         .preamble(PREAMBLE)
+        .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
@@ -35,6 +36,7 @@ pub fn create_gemini_agent(
     client
         .agent(model)
         .preamble(PREAMBLE)
+        .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
@@ -52,6 +54,7 @@ pub fn create_openai_agent(
     client
         .agent(model)
         .preamble(PREAMBLE)
+        .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)
