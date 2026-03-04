@@ -23,6 +23,7 @@ describe('useChat', () => {
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.errorMessage).toBeNull();
       expect(result.current.currentResponse).toBe('');
+      expect(result.current.currentPhase).toBeNull();
       expect(result.current.stopGeneration).toBeTypeOf('function');
     });
   });
@@ -75,6 +76,19 @@ describe('useChat', () => {
       });
 
       expect(result.current.isStreaming).toBeFalsy();
+    });
+
+    it('should clear currentPhase when called during streaming', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'tool_use', tool_name: 'web_search' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { result.current.sendMessage('test message'); });
+      await act(async () => { result.current.stopGeneration(); });
+
+      expect(result.current.currentPhase).toBeNull();
     });
 
     it('should clear currentResponse when called during streaming', async () => {
@@ -263,6 +277,78 @@ describe('useChat', () => {
       });
 
       expect(api.startChatStream).toHaveBeenCalledTimes(2);
+    });
+
+    it('should set currentPhase when tool_use event is received', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'tool_use', tool_name: 'web_search' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { await result.current.sendMessage('test'); });
+
+      expect(result.current.currentPhase).toBe('web_search');
+    });
+
+    it('should clear currentPhase when done event is received', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'tool_use', tool_name: 'web_fetch' });
+        onEvent({ type: 'done', session_id: 'sid' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { await result.current.sendMessage('test'); });
+
+      expect(result.current.currentPhase).toBeNull();
+    });
+
+    it('should clear currentPhase when error event is received', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'tool_use', tool_name: 'web_search' });
+        onEvent({ type: 'error', message: 'something went wrong' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { await result.current.sendMessage('test'); });
+
+      expect(result.current.currentPhase).toBeNull();
+    });
+
+    it('should send research_mode flag when researchMode is true', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'done', session_id: 'sid' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { await result.current.sendMessage('量子コンピュータ', true); });
+
+      expect(api.startChatStream).toHaveBeenCalledWith(
+        expect.objectContaining({ research_mode: true }),
+        expect.any(Function),
+        'test-token',
+        expect.any(AbortSignal),
+      );
+    });
+
+    it('should not send research_mode flag when researchMode is false', async () => {
+      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
+        onEvent({ type: 'done', session_id: 'sid' });
+        return () => { };
+      });
+      const { result } = renderHook(() => useChat('test-token'));
+
+      await act(async () => { await result.current.sendMessage('hello', false); });
+
+      expect(api.startChatStream).toHaveBeenCalledWith(
+        expect.not.objectContaining({ research_mode: expect.anything() }),
+        expect.any(Function),
+        'test-token',
+        expect.any(AbortSignal),
+      );
     });
 
     it('should accumulate multiple text events', async () => {
