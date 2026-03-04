@@ -4,7 +4,7 @@ use rig::message::{AssistantContent, Message, UserContent};
 use rig::OneOrMany;
 
 /// Default maximum number of conversation turns to keep
-pub const DEFAULT_MAX_TURNS: usize = 20;
+pub const DEFAULT_MAX_HISTORY_TURNS: usize = 50;
 
 /// Manages conversation history for multi-turn dialogue
 #[derive(Clone)]
@@ -18,7 +18,7 @@ impl ConversationHistory {
     pub fn new(max_turns: usize) -> Self {
         Self {
             messages: Vec::new(),
-            max_turns: min(max_turns, DEFAULT_MAX_TURNS),
+            max_turns: min(max_turns, DEFAULT_MAX_HISTORY_TURNS),
         }
     }
 
@@ -81,14 +81,14 @@ mod tests {
     }
     #[test]
     fn test_new_creates_when_max_turns_is_at_maximum() {
-        let sut = ConversationHistory::new(DEFAULT_MAX_TURNS);
-        assert_eq!(sut.max_turns, DEFAULT_MAX_TURNS);
+        let sut = ConversationHistory::new(DEFAULT_MAX_HISTORY_TURNS);
+        assert_eq!(sut.max_turns, DEFAULT_MAX_HISTORY_TURNS);
     }
 
     #[test]
     fn test_new_creates_when_exceeding_the_maximum_max_turns() {
-        let sut = ConversationHistory::new(DEFAULT_MAX_TURNS + 1);
-        assert_eq!(sut.max_turns, DEFAULT_MAX_TURNS);
+        let sut = ConversationHistory::new(DEFAULT_MAX_HISTORY_TURNS + 1);
+        assert_eq!(sut.max_turns, DEFAULT_MAX_HISTORY_TURNS);
     }
 
     #[test]
