@@ -17,6 +17,9 @@ pub struct ChatRequest {
     pub session_id: Option<String>,
     /// The user's message
     pub message: String,
+    /// If true, inject a research preamble instructing the agent to investigate
+    /// the topic with web_search + web_fetch and return a structured report.
+    pub research_mode: Option<bool>,
 }
 
 /// SSE event data sent to the client
@@ -29,6 +32,24 @@ pub enum SseEventData {
     Done { session_id: String },
     /// Error occurred during processing
     Error { message: String },
+    /// The agent invoked a tool (e.g. web_search, web_fetch)
+    ToolUse { tool_name: String },
+}
+
+/// Build the research preamble that instructs the agent to investigate a topic.
+fn research_prompt(topic: &str) -> String {
+    format!(
+        "あなたは調査アシスタントです。以下のトピックについて徹底的に調査してください。\n\n\
+         手順:\n\
+         1. web_search ツールで複数のクエリを実行し、信頼性の高いソースを特定する\n\
+         2. web_fetch ツールで上位3〜5件のページを取得し、内容を精読する\n\
+         3. 以下の構造でMarkdownレポートを作成する:\n\
+            ## 概要\n\
+            ## 主要な発見\n\
+            ## 詳細分析\n\
+            ## ソース一覧（URLと概要）\n\n\
+         トピック: {topic}",
+    )
 }
 
 /// Internal function that returns a stream of SSE events
@@ -37,14 +58,21 @@ async fn chat_stream(
     state: Arc<AppState>,
     session_id: String,
     message: String,
+    research_mode: bool,
 ) -> impl Stream<Item = Result<Event, std::convert::Infallible>> {
     let (mut tx, rx) = mpsc::channel::<Event>(100);
 
     tokio::spawn(async move {
+        let prompt = if research_mode {
+            research_prompt(&message)
+        } else {
+            message
+        };
+
         let mut response_text = String::new();
         let mut agent_stream = state
             .agent
-            .stream_chat(&message, state.get_session(&session_id).unwrap().to_vec())
+            .stream_chat(&prompt, state.get_session(&session_id).unwrap().to_vec())
             .await;
 
         while let Some(event) = agent_stream.next().await {
@@ -55,6 +83,9 @@ async fn chat_stream(
                         .json_data(SseEventData::Text { content: text })
                         .unwrap()
                 }
+                ChatStreamEvent::ToolCall { name } => Event::default()
+                    .json_data(SseEventData::ToolUse { tool_name: name })
+                    .unwrap(),
                 ChatStreamEvent::Done => {
                     state.add_assistant_message(&session_id, &response_text);
                     Event::default()
@@ -104,8 +135,9 @@ pub async fn chat_handler(
     };
     state.add_user_message(&session_id, &req.message);
 
+    let research_mode = req.research_mode.unwrap_or(false);
     // Get stream and wrap in SSE response
-    let stream = chat_stream(state, session_id, req.message).await;
+    let stream = chat_stream(state, session_id, req.message, research_mode).await;
     Sse::new(stream)
 }
 
@@ -130,6 +162,7 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "test message".to_string(),
+            false,
         )
         .await;
 
@@ -169,6 +202,7 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "first message".to_string(),
+            false,
         )
         .await;
         while s1.next().await.is_some() {}
@@ -179,6 +213,7 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "second message".to_string(),
+            false,
         )
         .await;
         while s2.next().await.is_some() {}
@@ -204,6 +239,7 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "test message".to_string(),
+            false,
         )
         .await;
 
@@ -218,5 +254,69 @@ mod tests {
         }
 
         assert!(found_error, "Should have received an error SSE event");
+    }
+
+    #[test]
+    fn test_research_prompt_contains_topic() {
+        let sut = research_prompt("量子コンピュータ");
+
+        assert!(
+            sut.contains("量子コンピュータ"),
+            "Prompt should contain the topic"
+        );
+    }
+
+    #[test]
+    fn test_research_prompt_contains_tool_instructions() {
+        let sut = research_prompt("任意のトピック");
+
+        assert!(
+            sut.contains("web_search"),
+            "Prompt should mention web_search tool"
+        );
+        assert!(
+            sut.contains("web_fetch"),
+            "Prompt should mention web_fetch tool"
+        );
+    }
+
+    #[test]
+    fn test_research_prompt_contains_report_structure() {
+        let sut = research_prompt("任意のトピック");
+
+        assert!(
+            sut.contains("## 概要"),
+            "Prompt should define report structure"
+        );
+        assert!(
+            sut.contains("## ソース一覧"),
+            "Prompt should request sources section"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_tool_call_event_emits_tool_use_sse_event() {
+        let state = make_state(MockAgent::new(vec![vec![
+            ChatStreamEvent::ToolCall {
+                name: "web_search".to_string(),
+            },
+            ChatStreamEvent::Done,
+        ]]));
+        let session_id = state.create_session();
+
+        state.add_user_message(&session_id, "test");
+
+        let mut stream =
+            chat_stream(state.clone(), session_id.clone(), "test".to_string(), false).await;
+
+        let mut found_tool_use = false;
+        while let Some(Ok(event)) = stream.next().await {
+            let data = format!("{:?}", event);
+            if data.contains("web_search") {
+                found_tool_use = true;
+            }
+        }
+
+        assert!(found_tool_use, "Should have emitted a tool_use SSE event");
     }
 }

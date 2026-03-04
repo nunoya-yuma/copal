@@ -54,7 +54,10 @@ export function useChat(token: string, onAuthError?: () => void) {
   // Error message to display in the UI (null when no error)
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const sendMessage = async (content: string) => {
+  // Current tool being executed by the agent (null when not in a tool call)
+  const [currentPhase, setCurrentPhase] = useState<string | null>(null);
+
+  const sendMessage = async (content: string, researchMode = false) => {
     if (isStreaming) return;
     setErrorMessage(null);
 
@@ -67,7 +70,8 @@ export function useChat(token: string, onAuthError?: () => void) {
     let accumulatedText = '';
     const request: ChatRequest = {
       ...(sessionId && { session_id: sessionId }),
-      message: userMessage.content
+      message: userMessage.content,
+      ...(researchMode && { research_mode: true }),
     };
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -78,17 +82,23 @@ export function useChat(token: string, onAuthError?: () => void) {
           accumulatedText += event.content;
           break;
 
+        case 'tool_use':
+          setCurrentPhase(event.tool_name);
+          break;
+
         case 'done':
           const assistantMessage: Message = { role: 'assistant', content: accumulatedText, timestamp: Date.now() };
           setMessages((prev) => [...prev, assistantMessage]);
           setSessionId(event.session_id);
           setIsStreaming(false);
           setCurrentResponse('');
+          setCurrentPhase(null);
           break;
 
         case 'error':
           console.error(`Error event has been received. ${event.message}`);
           setIsStreaming(false);
+          setCurrentPhase(null);
           if (event.message.includes("401")) {
             onAuthError?.();
           }
@@ -109,7 +119,8 @@ export function useChat(token: string, onAuthError?: () => void) {
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setCurrentResponse('');
+    setCurrentPhase(null);
   };
 
-  return { messages, currentResponse, isStreaming, errorMessage, sendMessage, stopGeneration };
+  return { messages, currentResponse, isStreaming, errorMessage, currentPhase, sendMessage, stopGeneration };
 }

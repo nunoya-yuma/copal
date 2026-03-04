@@ -2,6 +2,7 @@
 export interface ChatRequest {
   session_id?: string;
   message: string;
+  research_mode?: boolean;
 }
 
 // SSEイベント型（Rust側のSseEventDataと対応）
@@ -9,7 +10,8 @@ export interface ChatRequest {
 export type SseEvent =
   | { type: 'text'; content: string }
   | { type: 'done'; session_id: string }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'tool_use'; tool_name: string };
 
 // UIメッセージ型
 export interface Message {

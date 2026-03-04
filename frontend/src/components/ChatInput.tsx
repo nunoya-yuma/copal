@@ -1,7 +1,7 @@
 import { useState, FormEvent, KeyboardEvent } from 'react';
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, researchMode: boolean) => void;
   onStop: () => void;
   disabled: boolean;
   isStreaming: boolean;
@@ -9,12 +9,13 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [isResearchMode, setIsResearchMode] = useState(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const message = input.trim();
     if (!message || disabled) return;
-    onSend(message);
+    onSend(message, isResearchMode);
     setInput('');
   };
 
@@ -27,12 +28,21 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
 
   return (
     <form onSubmit={handleSubmit} className="chat-input">
+      <button
+        type="button"
+        className={`research-toggle ${isResearchMode ? 'active' : ''}`}
+        onClick={() => setIsResearchMode((prev) => !prev)}
+        title="リサーチモード"
+        disabled={disabled}
+      >
+        🔍
+      </button>
       <input
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="メッセージを入力..."
+        placeholder={isResearchMode ? "調査トピックを入力..." : "メッセージを入力..."}
         disabled={disabled}
       />
       {

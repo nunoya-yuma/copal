@@ -25,6 +25,8 @@ use super::{
 pub enum ChatStreamEvent {
     /// A text fragment from the assistant's response
     TextDelta(String),
+    /// The agent invoked a tool (e.g. web_search, web_fetch)
+    ToolCall { name: String },
     /// The stream has completed successfully
     Done,
     /// An error occurred during streaming
@@ -87,9 +89,14 @@ impl AnyAgent {
                 Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
                     text,
                 ))) => Some(ChatStreamEvent::TextDelta(text.text)),
+                Ok(MultiTurnStreamItem::StreamAssistantItem(
+                    StreamedAssistantContent::ToolCall { tool_call, .. },
+                )) => Some(ChatStreamEvent::ToolCall {
+                    name: tool_call.function.name,
+                }),
                 Ok(MultiTurnStreamItem::FinalResponse(_)) => Some(ChatStreamEvent::Done),
                 Err(e) => Some(ChatStreamEvent::Error(e.to_string())),
-                _ => None, // tool calls etc. skip(don't yield)
+                _ => None,
             }
         });
         Box::pin(mapped)
@@ -129,6 +136,7 @@ mod tests {
                     println!("{}", text);
                     got_text = true;
                 }
+                ChatStreamEvent::ToolCall { .. } => {}
                 ChatStreamEvent::Done => {
                     got_done = true;
                 }
