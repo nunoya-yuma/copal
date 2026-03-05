@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from 'react';
+import { useState } from 'react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -10,23 +10,22 @@ interface ChatInputProps {
 export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     const message = input.trim();
     if (!message || disabled) return;
     onSend(message);
     setInput('');
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as any);
+      handleSubmit();
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="chat-input">
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="chat-input">
       <input
         type="text"
         value={input}
