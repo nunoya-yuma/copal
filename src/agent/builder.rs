@@ -3,6 +3,7 @@ use rig::client::{CompletionClient, Nothing};
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 use rig::providers::{gemini, ollama, openai};
 
+use super::research_tool::ResearchTool;
 use super::{PdfRead, WebFetch, WebSearch};
 
 const PREAMBLE: &str =
@@ -55,6 +56,97 @@ pub fn create_openai_agent(
         .agent(model)
         .preamble(PREAMBLE)
         .default_max_turns(10)
+        .tool(web_fetch)
+        .tool(WebSearch)
+        .tool(PdfRead)
+        .build()
+}
+
+/// System prompt that defines the RouterAgent's tool-selection strategy.
+///
+/// The router sees all tools (research_tool, web_search, web_fetch, pdf_read)
+/// and must choose the right one based on the user's intent:
+/// - Deep investigation → research_tool
+/// - Quick lookup      → web_search
+/// - Specific URL      → web_fetch
+/// - PDF document      → pdf_read
+/// - General chat      → no tool
+const ROUTER_PREAMBLE: &str = "\
+You are an intelligent assistant that routes user requests to the most appropriate tool.\n\
+\n\
+Available tools and when to use them:\n\
+- research_tool: Use for in-depth research requiring multiple sources. \
+  Triggers a full investigation across web pages and returns a structured report. \
+  Use when the user wants thorough analysis, comparisons, or comprehensive understanding.\n\
+- web_search: Use for quick factual lookups, current events, or brief information needs \
+  that don't require reading full pages.\n\
+- web_fetch: Use when the user provides a specific URL to read or when you need \
+  to retrieve a known page.\n\
+- pdf_read: Use when the user provides a path to a PDF file to read.\n\
+\n\
+For general conversation, questions you can answer from your knowledge, or simple \
+clarifications — respond directly without using any tool.\n\
+\n\
+When research context is injected (the prompt starts with research instructions), \
+immediately invoke research_tool with the topic.";
+
+/// Create an Ollama-based router agent with all routing tools
+pub fn create_ollama_router_agent(
+    model: &str,
+    research_tool: ResearchTool,
+    web_fetch: WebFetch,
+) -> Agent<ollama::CompletionModel> {
+    let client = ollama::Client::builder()
+        .api_key(Nothing)
+        .build()
+        .expect("Failed to create Ollama client");
+
+    client
+        .agent(model)
+        .preamble(ROUTER_PREAMBLE)
+        .default_max_turns(10)
+        .tool(research_tool)
+        .tool(web_fetch)
+        .tool(WebSearch)
+        .tool(PdfRead)
+        .build()
+}
+
+/// Create a Gemini-based router agent with all routing tools
+pub fn create_gemini_router_agent(
+    api_key: &str,
+    model: &str,
+    research_tool: ResearchTool,
+    web_fetch: WebFetch,
+) -> Agent<gemini::completion::CompletionModel> {
+    let client = gemini::Client::new(api_key).expect("Failed to create Gemini client");
+
+    client
+        .agent(model)
+        .preamble(ROUTER_PREAMBLE)
+        .default_max_turns(10)
+        .tool(research_tool)
+        .tool(web_fetch)
+        .tool(WebSearch)
+        .tool(PdfRead)
+        .build()
+}
+
+/// Create an OpenAI-based router agent with all routing tools
+pub fn create_openai_router_agent(
+    api_key: &str,
+    model: &str,
+    research_tool: ResearchTool,
+    web_fetch: WebFetch,
+) -> Agent<ResponsesCompletionModel> {
+    let client: rig::client::Client<openai::OpenAIResponsesExt> =
+        openai::Client::new(api_key).expect("Failed to create OpenAI client");
+
+    client
+        .agent(model)
+        .preamble(ROUTER_PREAMBLE)
+        .default_max_turns(10)
+        .tool(research_tool)
         .tool(web_fetch)
         .tool(WebSearch)
         .tool(PdfRead)

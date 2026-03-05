@@ -1,13 +1,14 @@
-use copal::agent::WebFetch;
 use dotenvy::dotenv;
 
 #[cfg(all(feature = "cli", not(feature = "web")))]
-use copal::agent::{create_gemini_agent, create_ollama_agent, create_openai_agent, default_model};
+use copal::agent::{
+    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, WebFetch,
+};
 #[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::cli::run_interactive;
 #[cfg(feature = "web")]
 use copal::{
-    agent::AnyAgent,
+    agent::RouterAgent,
     web::{build_router, AppState},
 };
 #[cfg(feature = "web")]
@@ -26,8 +27,7 @@ async fn main() {
         let api_token = std::env::var("COPAL_API_TOKEN")
             .expect("COPAL_API_TOKEN environment variable is required");
         assert!(!api_token.is_empty(), "COPAL_API_TOKEN must not be empty");
-        let web_fetch = WebFetch::new();
-        let agent = AnyAgent::from_env(web_fetch);
+        let agent = RouterAgent::from_env();
         let app_state = AppState::new(Arc::new(agent), api_token);
         let router = build_router(Arc::new(app_state));
 

@@ -13,6 +13,8 @@ use rig::providers::openai::responses_api::ResponsesCompletionModel;
 use rig::streaming::StreamedAssistantContent;
 use rig::streaming::StreamingChat;
 
+use rig::completion::Prompt;
+
 use super::{
     create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, ChatAgent,
     WebFetch,
@@ -60,6 +62,16 @@ impl AnyAgent {
                 Self::Gemini(create_gemini_agent(&api_key, &model, web_fetch))
             }
             _ => Self::Ollama(create_ollama_agent(&model, web_fetch)),
+        }
+    }
+
+    /// Run a single prompt and return the full response text.
+    /// Used by ResearchTool to run a sub-agent synchronously.
+    pub async fn prompt(&self, text: &str) -> anyhow::Result<String> {
+        match self {
+            AnyAgent::Ollama(agent) => agent.prompt(text).await.map_err(anyhow::Error::from),
+            AnyAgent::Gemini(agent) => agent.prompt(text).await.map_err(anyhow::Error::from),
+            AnyAgent::OpenAi(agent) => agent.prompt(text).await.map_err(anyhow::Error::from),
         }
     }
 

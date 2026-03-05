@@ -36,18 +36,13 @@ pub enum SseEventData {
     ToolUse { tool_name: String },
 }
 
-/// Build the research preamble that instructs the agent to investigate a topic.
+/// Build the research preamble injected when research_mode is active.
+///
+/// With RouterAgent, this prompt simply signals intent — the router decides
+/// to invoke research_tool, which runs the full multi-step investigation internally.
 fn research_prompt(topic: &str) -> String {
     format!(
-        "あなたは調査アシスタントです。以下のトピックについて徹底的に調査してください。\n\n\
-         手順:\n\
-         1. web_search ツールで複数のクエリを実行し、信頼性の高いソースを特定する\n\
-         2. web_fetch ツールで上位3〜5件のページを取得し、内容を精読する\n\
-         3. 以下の構造でMarkdownレポートを作成する:\n\
-            ## 概要\n\
-            ## 主要な発見\n\
-            ## 詳細分析\n\
-            ## ソース一覧（URLと概要）\n\n\
+        "以下のトピックについて徹底的に調査し、詳細なレポートを作成してください。\n\n\
          トピック: {topic}",
     )
 }
@@ -267,30 +262,24 @@ mod tests {
     }
 
     #[test]
-    fn test_research_prompt_contains_tool_instructions() {
+    fn test_research_prompt_signals_investigation_intent() {
         let sut = research_prompt("任意のトピック");
 
+        // The simplified handlers prompt signals intent to the RouterAgent;
+        // tool-specific instructions now live in research_tool::research_prompt.
         assert!(
-            sut.contains("web_search"),
-            "Prompt should mention web_search tool"
-        );
-        assert!(
-            sut.contains("web_fetch"),
-            "Prompt should mention web_fetch tool"
+            sut.contains("調査"),
+            "Prompt should signal research/investigation intent"
         );
     }
 
     #[test]
-    fn test_research_prompt_contains_report_structure() {
+    fn test_research_prompt_contains_report_request() {
         let sut = research_prompt("任意のトピック");
 
         assert!(
-            sut.contains("## 概要"),
-            "Prompt should define report structure"
-        );
-        assert!(
-            sut.contains("## ソース一覧"),
-            "Prompt should request sources section"
+            sut.contains("レポート"),
+            "Prompt should request a report output"
         );
     }
 
