@@ -25,30 +25,20 @@ pub enum ResearchError {
     PromptError(String),
 }
 
-// TODO(human): Implement research_prompt(topic: &str) -> String
-//
-// This function builds the instruction given to the inner research sub-agent.
-// The inner agent already has web_search and web_fetch tools available and will
-// run multiple tool-calling turns before returning.
-//
-// Design this prompt to guide the sub-agent toward:
-//   - Running multiple web_search queries with varied keywords
-//   - Fetching and reading the top 3-5 pages with web_fetch
-//   - Returning a structured Markdown report with the following sections:
-//       ## 概要
-//       ## 主要な発見
-//       ## 詳細分析
-//       ## ソース一覧（URLと概要）
-//
-// Hint: the existing research_prompt in src/web/handlers.rs (now simplified) is
-// a good reference — but tailor this one specifically for the sub-agent context
-// where `topic` is an explicit argument.
-//
-// After implementing, write these two tests in the #[cfg(test)] block below:
-//   test_research_prompt_contains_topic
-//   test_research_prompt_mentions_report_structure
-fn research_prompt(_topic: &str) -> String {
-    todo!("TODO(human): implement research_prompt")
+fn research_prompt(topic: &str) -> String {
+    format!(
+        "You are a research assistant. Conduct thorough research on the '{}'.
+
+        Procedure:
+        1. Use the web_search tool to run multiple queries and identify reliable sources.
+        2. Use the web_fetch tool to retrieve the top 3-5 pages and carefully read their content.
+        3. Create a Markdown report in Japanese using the following structure:
+                    ## 概要
+                    ## 主要な発見
+                    ## 詳細分析
+                    ## ソース一覧 (URLと概要)",
+        topic
+    )
 }
 
 /// Tool that delegates deep research to an inner agent with web access.
@@ -107,13 +97,20 @@ impl rig::tool::Tool for ResearchTool {
 mod tests {
     use super::*;
 
-    // TODO(human): Write two tests for research_prompt:
-    //
-    // Test 1: test_research_prompt_contains_topic
-    //   - Call research_prompt("量子コンピュータ")
-    //   - Assert the returned string contains "量子コンピュータ"
-    //
-    // Test 2: test_research_prompt_mentions_report_structure
-    //   - Call research_prompt("任意のトピック")
-    //   - Assert the returned string contains "## 概要" and "## ソース一覧"
+    #[test]
+    fn test_research_prompt_contains_topic() {
+        let result = research_prompt("test-topic");
+
+        assert!(result.contains("test-topic"));
+    }
+
+    #[test]
+    fn test_research_prompt_mentions_report_structure() {
+        let result = research_prompt("test-topic");
+
+        assert!(result.contains("## 概要"));
+        assert!(result.contains("## 主要な発見"));
+        assert!(result.contains("## 詳細分析"));
+        assert!(result.contains("## ソース一覧 (URLと概要)"));
+    }
 }
