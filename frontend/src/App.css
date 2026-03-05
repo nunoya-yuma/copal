@@ -128,28 +128,6 @@ footer {
   background-color: var(--border-color);
 }
 
-/* Research mode toggle in chat input */
-.research-toggle {
-  padding: 0.75rem;
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-size: 1.1rem;
-  transition: background-color 0.15s;
-}
-
-.research-toggle.active {
-  background-color: #dbeafe;
-  border-color: var(--primary-color);
-}
-
-@media (prefers-color-scheme: dark) {
-  .research-toggle.active {
-    background-color: #1e40af;
-  }
-}
-
 /* Phase indicator shown below chat while streaming */
 .research-phase-indicator {
   padding: 0.4rem 1rem;

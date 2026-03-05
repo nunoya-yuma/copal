@@ -85,10 +85,7 @@ Available tools and when to use them:\n\
 - pdf_read: Use when the user provides a path to a PDF file to read.\n\
 \n\
 For general conversation, questions you can answer from your knowledge, or simple \
-clarifications — respond directly without using any tool.\n\
-\n\
-When research context is injected (the prompt starts with research instructions), \
-immediately invoke research_tool with the topic.";
+clarifications — respond directly without using any tool.";
 
 /// Create an Ollama-based router agent with all routing tools
 pub fn create_ollama_router_agent(

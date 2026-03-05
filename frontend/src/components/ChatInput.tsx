@@ -1,7 +1,15 @@
 import { useState, FormEvent, KeyboardEvent } from 'react';
 
+// TODO(human): Update the ChatInputProps interface and ChatInput component:
+// 1. Change onSend prop type: (message: string, researchMode: boolean) => void
+//    → (message: string) => void
+// 2. Remove the isResearchMode state and its useState import (if no longer needed)
+// 3. Remove the research toggle <button> (🔍) from JSX
+// 4. Change onSend call: onSend(message, isResearchMode) → onSend(message)
+// 5. Change placeholder to always be "メッセージを入力..."
+
 interface ChatInputProps {
-  onSend: (message: string, researchMode: boolean) => void;
+  onSend: (message: string) => void;
   onStop: () => void;
   disabled: boolean;
   isStreaming: boolean;
@@ -9,13 +17,12 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
-  const [isResearchMode, setIsResearchMode] = useState(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const message = input.trim();
     if (!message || disabled) return;
-    onSend(message, isResearchMode);
+    onSend(message);
     setInput('');
   };
 
@@ -28,21 +35,12 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
 
   return (
     <form onSubmit={handleSubmit} className="chat-input">
-      <button
-        type="button"
-        className={`research-toggle ${isResearchMode ? 'active' : ''}`}
-        onClick={() => setIsResearchMode((prev) => !prev)}
-        title="リサーチモード"
-        disabled={disabled}
-      >
-        🔍
-      </button>
       <input
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={isResearchMode ? "調査トピックを入力..." : "メッセージを入力..."}
+        placeholder={"メッセージを入力..."}
         disabled={disabled}
       />
       {

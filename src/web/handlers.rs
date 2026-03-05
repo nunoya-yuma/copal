@@ -17,9 +17,6 @@ pub struct ChatRequest {
     pub session_id: Option<String>,
     /// The user's message
     pub message: String,
-    /// If true, inject a research preamble instructing the agent to investigate
-    /// the topic with web_search + web_fetch and return a structured report.
-    pub research_mode: Option<bool>,
 }
 
 /// SSE event data sent to the client
@@ -36,33 +33,17 @@ pub enum SseEventData {
     ToolUse { tool_name: String },
 }
 
-/// Build the research preamble injected when research_mode is active.
-///
-/// With RouterAgent, this prompt simply signals intent — the router decides
-/// to invoke research_tool, which runs the full multi-step investigation internally.
-fn research_prompt(topic: &str) -> String {
-    format!(
-        "以下のトピックについて徹底的に調査し、詳細なレポートを作成してください。\n\n\
-         トピック: {topic}",
-    )
-}
-
 /// Internal function that returns a stream of SSE events
 /// Separated for testability - tests can consume this stream directly
 async fn chat_stream(
     state: Arc<AppState>,
     session_id: String,
     message: String,
-    research_mode: bool,
 ) -> impl Stream<Item = Result<Event, std::convert::Infallible>> {
     let (mut tx, rx) = mpsc::channel::<Event>(100);
 
     tokio::spawn(async move {
-        let prompt = if research_mode {
-            research_prompt(&message)
-        } else {
-            message
-        };
+        let prompt = message;
 
         let mut response_text = String::new();
         let mut agent_stream = state
@@ -130,9 +111,8 @@ pub async fn chat_handler(
     };
     state.add_user_message(&session_id, &req.message);
 
-    let research_mode = req.research_mode.unwrap_or(false);
     // Get stream and wrap in SSE response
-    let stream = chat_stream(state, session_id, req.message, research_mode).await;
+    let stream = chat_stream(state, session_id, req.message).await;
     Sse::new(stream)
 }
 
@@ -157,7 +137,6 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "test message".to_string(),
-            false,
         )
         .await;
 
@@ -197,7 +176,6 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "first message".to_string(),
-            false,
         )
         .await;
         while s1.next().await.is_some() {}
@@ -208,7 +186,6 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "second message".to_string(),
-            false,
         )
         .await;
         while s2.next().await.is_some() {}
@@ -234,7 +211,6 @@ mod tests {
             state.clone(),
             session_id.clone(),
             "test message".to_string(),
-            false,
         )
         .await;
 
@@ -251,38 +227,6 @@ mod tests {
         assert!(found_error, "Should have received an error SSE event");
     }
 
-    #[test]
-    fn test_research_prompt_contains_topic() {
-        let sut = research_prompt("量子コンピュータ");
-
-        assert!(
-            sut.contains("量子コンピュータ"),
-            "Prompt should contain the topic"
-        );
-    }
-
-    #[test]
-    fn test_research_prompt_signals_investigation_intent() {
-        let sut = research_prompt("任意のトピック");
-
-        // The simplified handlers prompt signals intent to the RouterAgent;
-        // tool-specific instructions now live in research_tool::research_prompt.
-        assert!(
-            sut.contains("調査"),
-            "Prompt should signal research/investigation intent"
-        );
-    }
-
-    #[test]
-    fn test_research_prompt_contains_report_request() {
-        let sut = research_prompt("任意のトピック");
-
-        assert!(
-            sut.contains("レポート"),
-            "Prompt should request a report output"
-        );
-    }
-
     #[tokio::test]
     async fn test_tool_call_event_emits_tool_use_sse_event() {
         let state = make_state(MockAgent::new(vec![vec![
@@ -295,8 +239,7 @@ mod tests {
 
         state.add_user_message(&session_id, "test");
 
-        let mut stream =
-            chat_stream(state.clone(), session_id.clone(), "test".to_string(), false).await;
+        let mut stream = chat_stream(state.clone(), session_id.clone(), "test".to_string()).await;
 
         let mut found_tool_use = false;
         while let Some(Ok(event)) = stream.next().await {
