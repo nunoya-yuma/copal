@@ -57,7 +57,7 @@ export function useChat(token: string, onAuthError?: () => void) {
   // Current tool being executed by the agent (null when not in a tool call)
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
 
-  const sendMessage = async (content: string, researchMode = false) => {
+  const sendMessage = async (content: string) => {
     if (isStreaming) return;
     setErrorMessage(null);
 
@@ -71,7 +71,6 @@ export function useChat(token: string, onAuthError?: () => void) {
     const request: ChatRequest = {
       ...(sessionId && { session_id: sessionId }),
       message: userMessage.content,
-      ...(researchMode && { research_mode: true }),
     };
     const controller = new AbortController();
     abortControllerRef.current = controller;

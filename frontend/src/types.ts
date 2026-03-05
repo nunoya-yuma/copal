@@ -2,7 +2,6 @@
 export interface ChatRequest {
   session_id?: string;
   message: string;
-  research_mode?: boolean;
 }
 
 // SSEイベント型（Rust側のSseEventDataと対応）

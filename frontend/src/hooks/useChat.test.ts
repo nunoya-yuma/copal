@@ -317,40 +317,6 @@ describe('useChat', () => {
       expect(result.current.currentPhase).toBeNull();
     });
 
-    it('should send research_mode flag when researchMode is true', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
-        onEvent({ type: 'done', session_id: 'sid' });
-        return () => { };
-      });
-      const { result } = renderHook(() => useChat('test-token'));
-
-      await act(async () => { await result.current.sendMessage('量子コンピュータ', true); });
-
-      expect(api.startChatStream).toHaveBeenCalledWith(
-        expect.objectContaining({ research_mode: true }),
-        expect.any(Function),
-        'test-token',
-        expect.any(AbortSignal),
-      );
-    });
-
-    it('should not send research_mode flag when researchMode is false', async () => {
-      vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {
-        onEvent({ type: 'done', session_id: 'sid' });
-        return () => { };
-      });
-      const { result } = renderHook(() => useChat('test-token'));
-
-      await act(async () => { await result.current.sendMessage('hello', false); });
-
-      expect(api.startChatStream).toHaveBeenCalledWith(
-        expect.not.objectContaining({ research_mode: expect.anything() }),
-        expect.any(Function),
-        'test-token',
-        expect.any(AbortSignal),
-      );
-    });
-
     it('should accumulate multiple text events', async () => {
       // Verify that multiple text events are concatenated correctly
       vi.mocked(api.startChatStream).mockImplementation(async (_request, onEvent) => {

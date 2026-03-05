@@ -25,7 +25,7 @@ describe('ChatInput', () => {
       await userEvent.type(screen.getByRole('textbox'), 'Hello World');
       await userEvent.click(screen.getByText('送信'));
 
-      expect(onSend).toHaveBeenCalledWith('Hello World', false);
+      expect(onSend).toHaveBeenCalledWith('Hello World');
     });
 
     it('should clear input after sending', async () => {
@@ -44,42 +44,7 @@ describe('ChatInput', () => {
 
       await userEvent.type(screen.getByRole('textbox'), 'Hello World{Enter}');
 
-      expect(onSend).toHaveBeenCalledWith('Hello World', false);
-    });
-  });
-
-  describe('Research mode toggle', () => {
-    it('should render a research toggle button', () => {
-      render(<ChatInput onSend={() => { }} onStop={() => { }} disabled={false} isStreaming={false} />);
-
-      expect(screen.getByTitle('リサーチモード')).toBeInTheDocument();
-    });
-
-    it('should change placeholder when research mode is toggled on', async () => {
-      render(<ChatInput onSend={() => { }} onStop={() => { }} disabled={false} isStreaming={false} />);
-      const sut = screen.getByRole('textbox');
-      expect(sut).toHaveAttribute('placeholder', 'メッセージを入力...');
-
-      await userEvent.click(screen.getByTitle('リサーチモード'));
-
-      expect(sut).toHaveAttribute('placeholder', '調査トピックを入力...');
-    });
-
-    it('should call onSend with researchMode=true when research mode is active', async () => {
-      const onSend = vi.fn();
-      render(<ChatInput onSend={onSend} onStop={() => { }} disabled={false} isStreaming={false} />);
-
-      await userEvent.click(screen.getByTitle('リサーチモード'));
-      await userEvent.type(screen.getByRole('textbox'), 'quantum');
-      await userEvent.click(screen.getByText('送信'));
-
-      expect(onSend).toHaveBeenCalledWith('quantum', true);
-    });
-
-    it('should be disabled when disabled prop is true', () => {
-      render(<ChatInput onSend={() => { }} onStop={() => { }} disabled={true} isStreaming={false} />);
-
-      expect(screen.getByTitle('リサーチモード')).toBeDisabled();
+      expect(onSend).toHaveBeenCalledWith('Hello World');
     });
   });
 
