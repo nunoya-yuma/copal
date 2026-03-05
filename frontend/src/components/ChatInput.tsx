@@ -1,12 +1,4 @@
-import { useState, FormEvent, KeyboardEvent } from 'react';
-
-// TODO(human): Update the ChatInputProps interface and ChatInput component:
-// 1. Change onSend prop type: (message: string, researchMode: boolean) => void
-//    → (message: string) => void
-// 2. Remove the isResearchMode state and its useState import (if no longer needed)
-// 3. Remove the research toggle <button> (🔍) from JSX
-// 4. Change onSend call: onSend(message, isResearchMode) → onSend(message)
-// 5. Change placeholder to always be "メッセージを入力..."
+import { useState, KeyboardEvent } from 'react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -18,7 +10,7 @@ interface ChatInputProps {
 export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const message = input.trim();
     if (!message || disabled) return;
