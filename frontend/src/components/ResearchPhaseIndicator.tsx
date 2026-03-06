@@ -1,3 +1,5 @@
+import { ThinkingDots } from './ThinkingDots';
+
 interface ResearchPhaseIndicatorProps {
   currentPhase: string | null;
 }
@@ -25,6 +27,7 @@ export function ResearchPhaseIndicator({ currentPhase }: ResearchPhaseIndicatorP
 
   return (
     <div className="research-phase-indicator">
+      <ThinkingDots />
       {getPhaseLabel(currentPhase)}
     </div>
   );

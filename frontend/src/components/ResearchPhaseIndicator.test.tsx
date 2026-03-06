@@ -22,4 +22,11 @@ describe('ResearchPhaseIndicator', () => {
     render(<ResearchPhaseIndicator currentPhase="some_unknown_tool" />);
     expect(screen.getByText('⚙️ 処理中...')).toBeInTheDocument();
   });
+
+  it('should render three thinking dots inside ResearchPhaseIndicator', () => {
+    const { container } = render(<ResearchPhaseIndicator currentPhase="web_search" />);
+    const dots = container.querySelectorAll('.thinking-dot');
+    expect(dots).toHaveLength(3)
+  });
+
 });
