@@ -1,17 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
+import { ThinkingDots } from './ThinkingDots';
 import type { Message } from '../types';
 
 interface ChatContainerProps {
   messages: Message[];
   currentResponse: string;
   isStreaming: boolean;
+  currentPhase: string | null;
 }
 
 export function ChatContainer({
   messages,
   currentResponse,
   isStreaming,
+  currentPhase,
 }: ChatContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -34,6 +37,11 @@ export function ChatContainer({
             timestamp: Date.now(),
           }}
         />
+      )}
+      {isStreaming && !currentResponse && !currentPhase && (
+        <div className="thinking-waiting">
+          <ThinkingDots />
+        </div>
       )}
     </div>
   );

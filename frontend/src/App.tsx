@@ -43,6 +43,7 @@ function App() {
           messages={messages}
           currentResponse={currentResponse}
           isStreaming={isStreaming}
+          currentPhase={currentPhase}
         />
         <ResearchPhaseIndicator currentPhase={currentPhase} />
       </main>
