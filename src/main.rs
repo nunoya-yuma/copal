@@ -1,10 +1,7 @@
 use dotenvy::dotenv;
 
 #[cfg(all(feature = "cli", not(feature = "web")))]
-use copal::agent::{
-    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model,
-    mcp::load_mcp_tools, WebFetch,
-};
+use copal::agent::RouterAgent;
 #[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::cli::run_interactive;
 #[cfg(feature = "web")]
@@ -48,31 +45,8 @@ async fn main() {
     // CLI mode (only runs if web feature is disabled)
     #[cfg(all(feature = "cli", not(feature = "web")))]
     {
-        use std::env;
-
-        let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string());
-        let model = env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
-        let web_fetch = WebFetch::new();
-        let mcp_tools = load_mcp_tools().await;
-
-        match provider.as_str() {
-            "openai" => {
-                let api_key = env::var("OPENAI_API_KEY")
-                    .expect("OPENAI_API_KEY required for OpenAI provider");
-                let agent = create_openai_agent(&api_key, &model, web_fetch, mcp_tools);
-                run_interactive(agent).await;
-            }
-            "gemini" => {
-                let api_key = env::var("GEMINI_API_KEY")
-                    .expect("GEMINI_API_KEY required for Gemini provider");
-                let agent = create_gemini_agent(&api_key, &model, web_fetch, mcp_tools);
-                run_interactive(agent).await;
-            }
-            _ => {
-                let agent = create_ollama_agent(&model, web_fetch, mcp_tools);
-                run_interactive(agent).await;
-            }
-        }
+        let agent = RouterAgent::from_env().await;
+        run_interactive(agent).await;
     }
 
     #[cfg(not(any(feature = "cli", feature = "web")))]
