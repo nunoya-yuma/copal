@@ -1,26 +1,18 @@
 use futures::StreamExt;
-use log::{error, warn};
-use rig::agent::Agent;
-use rig::agent::MultiTurnStreamItem;
-use rig::completion::{CompletionModel, GetTokenUsage};
-use rig::streaming::StreamedAssistantContent;
-use rig::streaming::StreamingChat;
+use log::error;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::io::{self, Write};
 
 use super::render::{render_markdown, try_clear_lines};
+use crate::agent::{ChatAgent, ChatStreamEvent};
 use crate::session::ConversationHistory;
 use crate::session::DEFAULT_MAX_HISTORY_TURNS;
 
 const PROMPT: &str = "> ";
 const HISTORY_FILE: &str = ".copal_history";
 
-pub async fn run_interactive<M>(agent: Agent<M>)
-where
-    M: CompletionModel + 'static,
-    M::StreamingResponse: GetTokenUsage,
-{
+pub async fn run_interactive(agent: impl ChatAgent) {
     println!("Copal Interactive Mode");
     println!("Type 'exit' or 'quit' to exit, Ctrl+D to quit\n");
 
@@ -41,7 +33,7 @@ where
             }
             Err(ReadlineError::Eof) => break,
             Err(err) => {
-                warn!("Readline error: {}", err);
+                log::warn!("Readline error: {}", err);
                 break;
             }
         };
@@ -65,25 +57,24 @@ where
 
         let mut response_text = String::new();
 
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
-                    text,
-                ))) => {
-                    print!("{}", text.text);
-                    response_text.push_str(&text.text);
+        while let Some(event) = stream.next().await {
+            match event {
+                ChatStreamEvent::TextDelta(text) => {
+                    print!("{}", text);
+                    response_text.push_str(&text);
                     io::stdout().flush().unwrap();
                 }
-                Ok(MultiTurnStreamItem::FinalResponse(_)) => {
-                    // Final response from LLM
+                ChatStreamEvent::ToolCall { name } => {
+                    log::info!("Tool call: {}", name);
                 }
-                Err(e) => {
+                ChatStreamEvent::Done => break,
+                ChatStreamEvent::Error(e) => {
                     error!("Stream error: {}", e);
                     break;
                 }
-                _ => {} // Others(tool call etc.)
             }
         }
+
         // Replace raw streamed text with rendered markdown
         if !response_text.is_empty() {
             if !try_clear_lines(&response_text) {
