@@ -15,10 +15,11 @@ use rig::streaming::StreamedAssistantContent;
 use rig::streaming::StreamingChat;
 
 use super::any_agent::AnyAgent;
+use super::mcp::load_mcp_tools;
 use super::research_tool::ResearchTool;
 use super::{
     create_gemini_router_agent, create_ollama_router_agent, create_openai_router_agent,
-    default_model, ChatAgent, ChatStreamEvent, WebFetch,
+    default_model, ChatAgent, ChatStreamEvent, McpToolSet, WebFetch,
 };
 
 /// A RouterAgent that orchestrates specialized tools (including a ResearchTool sub-agent).
@@ -37,15 +38,20 @@ impl RouterAgent {
     /// Create a RouterAgent from environment configuration.
     ///
     /// Builds two-level agent hierarchy:
-    /// 1. Inner AnyAgent (web_search + web_fetch + pdf_read) for deep research
-    /// 2. Outer RouterAgent with ResearchTool wrapping the inner agent
-    pub fn from_env() -> Self {
+    /// 1. Inner AnyAgent (web_search + web_fetch + pdf_read + MCP tools) for deep research
+    /// 2. Outer RouterAgent with ResearchTool wrapping the inner agent (+ MCP tools)
+    ///
+    /// Async because MCP server connections are established at startup.
+    pub async fn from_env() -> Self {
         let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string());
         let model = env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
 
-        // Build inner research agent (shares the same provider/model)
+        // Load MCP tools once; clone to share between inner and outer agents
+        let mcp_tools: Vec<McpToolSet> = load_mcp_tools().await;
+
+        // Build inner research agent (shares the same provider/model and MCP tools)
         let web_fetch = WebFetch::new();
-        let inner_agent = AnyAgent::from_env(web_fetch.clone());
+        let inner_agent = AnyAgent::from_env(web_fetch.clone(), mcp_tools.clone());
         let research_tool = ResearchTool::new(Arc::new(inner_agent));
 
         match provider.as_str() {
@@ -57,6 +63,7 @@ impl RouterAgent {
                     &model,
                     research_tool,
                     web_fetch,
+                    mcp_tools,
                 ))
             }
             "gemini" => {
@@ -67,9 +74,15 @@ impl RouterAgent {
                     &model,
                     research_tool,
                     web_fetch,
+                    mcp_tools,
                 ))
             }
-            _ => Self::Ollama(create_ollama_router_agent(&model, research_tool, web_fetch)),
+            _ => Self::Ollama(create_ollama_router_agent(
+                &model,
+                research_tool,
+                web_fetch,
+                mcp_tools,
+            )),
         }
     }
 

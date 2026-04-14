@@ -17,7 +17,7 @@ use rig::completion::Prompt;
 
 use super::{
     create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, ChatAgent,
-    WebFetch,
+    McpToolSet, WebFetch,
 };
 
 /// Provider-agnostic stream event emitted by `AnyAgent::stream_chat`.
@@ -46,7 +46,7 @@ pub enum AnyAgent {
 impl AnyAgent {
     /// Create an AnyAgent from environment configuration.
     /// Reads LLM_PROVIDER and LLM_MODEL env vars plus provider-specific API keys.
-    pub fn from_env(web_fetch: WebFetch) -> Self {
+    pub fn from_env(web_fetch: WebFetch, mcp_tools: Vec<McpToolSet>) -> Self {
         let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string());
         let model = env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
 
@@ -54,14 +54,14 @@ impl AnyAgent {
             "openai" => {
                 let api_key =
                     env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY required for OpenAI");
-                Self::OpenAi(create_openai_agent(&api_key, &model, web_fetch))
+                Self::OpenAi(create_openai_agent(&api_key, &model, web_fetch, mcp_tools))
             }
             "gemini" => {
                 let api_key =
                     env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY required for Gemini");
-                Self::Gemini(create_gemini_agent(&api_key, &model, web_fetch))
+                Self::Gemini(create_gemini_agent(&api_key, &model, web_fetch, mcp_tools))
             }
-            _ => Self::Ollama(create_ollama_agent(&model, web_fetch)),
+            _ => Self::Ollama(create_ollama_agent(&model, web_fetch, mcp_tools)),
         }
     }
 
@@ -135,7 +135,7 @@ mod tests {
     #[ignore]
     async fn test_stream_chat_response() {
         let web_fetch = WebFetch::new();
-        let agent = AnyAgent::from_env(web_fetch);
+        let agent = AnyAgent::from_env(web_fetch, vec![]);
 
         let mut stream = agent.stream_chat("hello", vec![]).await;
 
