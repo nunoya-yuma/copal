@@ -3,6 +3,7 @@ use rig::client::{CompletionClient, Nothing};
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 use rig::providers::{gemini, ollama, openai};
 
+use super::mcp::McpToolSet;
 use super::research_tool::ResearchTool;
 use super::{PdfRead, WebFetch, WebSearch};
 
@@ -10,20 +11,29 @@ const PREAMBLE: &str =
     "You are a research assistant that helps users gather and summarize information from the web";
 
 /// Create an Ollama-based research agent
-pub fn create_ollama_agent(model: &str, web_fetch: WebFetch) -> Agent<ollama::CompletionModel> {
+pub fn create_ollama_agent(
+    model: &str,
+    web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
+) -> Agent<ollama::CompletionModel> {
     let client = ollama::Client::builder()
         .api_key(Nothing)
         .build()
         .expect("Failed to create Ollama client");
 
-    client
+    let mut builder = client
         .agent(model)
         .preamble(PREAMBLE)
         .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// Create a Gemini-based research agent
@@ -31,17 +41,23 @@ pub fn create_gemini_agent(
     api_key: &str,
     model: &str,
     web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
 ) -> Agent<gemini::completion::CompletionModel> {
     let client = gemini::Client::new(api_key).expect("Failed to create Gemini client");
 
-    client
+    let mut builder = client
         .agent(model)
         .preamble(PREAMBLE)
         .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// Create an OpenAI-based research agent
@@ -49,17 +65,24 @@ pub fn create_openai_agent(
     api_key: &str,
     model: &str,
     web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
 ) -> Agent<ResponsesCompletionModel> {
     let client: rig::client::Client<openai::OpenAIResponsesExt> =
         openai::Client::new(api_key).expect("Failed to create OpenAI client");
-    client
+
+    let mut builder = client
         .agent(model)
         .preamble(PREAMBLE)
         .default_max_turns(10)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// System prompt that defines the RouterAgent's tool-selection strategy.
@@ -83,6 +106,8 @@ Available tools and when to use them:\n\
 - web_fetch: Use when the user provides a specific URL to read or when you need \
   to retrieve a known page.\n\
 - pdf_read: Use when the user provides a path to a PDF file to read.\n\
+- Additional MCP tools may be available depending on configuration. \
+  Use them when they match the user's request more precisely than the built-in tools above.\n\
 \n\
 For general conversation, questions you can answer from your knowledge, or simple \
 clarifications — respond directly without using any tool.";
@@ -92,21 +117,27 @@ pub fn create_ollama_router_agent(
     model: &str,
     research_tool: ResearchTool,
     web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
 ) -> Agent<ollama::CompletionModel> {
     let client = ollama::Client::builder()
         .api_key(Nothing)
         .build()
         .expect("Failed to create Ollama client");
 
-    client
+    let mut builder = client
         .agent(model)
         .preamble(ROUTER_PREAMBLE)
         .default_max_turns(10)
         .tool(research_tool)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// Create a Gemini-based router agent with all routing tools
@@ -115,18 +146,24 @@ pub fn create_gemini_router_agent(
     model: &str,
     research_tool: ResearchTool,
     web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
 ) -> Agent<gemini::completion::CompletionModel> {
     let client = gemini::Client::new(api_key).expect("Failed to create Gemini client");
 
-    client
+    let mut builder = client
         .agent(model)
         .preamble(ROUTER_PREAMBLE)
         .default_max_turns(10)
         .tool(research_tool)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// Create an OpenAI-based router agent with all routing tools
@@ -135,19 +172,25 @@ pub fn create_openai_router_agent(
     model: &str,
     research_tool: ResearchTool,
     web_fetch: WebFetch,
+    mcp_tools: Vec<McpToolSet>,
 ) -> Agent<ResponsesCompletionModel> {
     let client: rig::client::Client<openai::OpenAIResponsesExt> =
         openai::Client::new(api_key).expect("Failed to create OpenAI client");
 
-    client
+    let mut builder = client
         .agent(model)
         .preamble(ROUTER_PREAMBLE)
         .default_max_turns(10)
         .tool(research_tool)
         .tool(web_fetch)
         .tool(WebSearch)
-        .tool(PdfRead)
-        .build()
+        .tool(PdfRead);
+
+    for mcp in mcp_tools {
+        builder = builder.rmcp_tools(mcp.tools, mcp.sink);
+    }
+
+    builder.build()
 }
 
 /// Get the default model name for a given provider
@@ -189,7 +232,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_ollama_agent_with_web_fetch() {
-        let agent = create_ollama_agent("qwen3", WebFetch::new());
+        let agent = create_ollama_agent("qwen3", WebFetch::new(), vec![]);
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await
@@ -209,6 +252,7 @@ mod tests {
             &api_key,
             gemini::completion::GEMINI_2_5_FLASH,
             WebFetch::new(),
+            vec![],
         );
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
@@ -225,8 +269,12 @@ mod tests {
         dotenv().ok();
 
         let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY required");
-        let agent =
-            create_openai_agent(&api_key, openai::completion::GPT_4_1_MINI, WebFetch::new());
+        let agent = create_openai_agent(
+            &api_key,
+            openai::completion::GPT_4_1_MINI,
+            WebFetch::new(),
+            vec![],
+        );
         let response = agent
             .prompt("Fetch https://example.com and **summarize** it shortly")
             .await

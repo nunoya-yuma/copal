@@ -1,6 +1,7 @@
 pub mod any_agent;
 mod builder;
 mod chat_agent;
+pub mod mcp;
 mod pdf_read;
 pub(crate) mod research_tool;
 pub mod router_agent;
@@ -16,6 +17,7 @@ pub use builder::{
     create_ollama_router_agent, create_openai_agent, create_openai_router_agent, default_model,
 };
 pub use chat_agent::ChatAgent;
+pub use mcp::McpToolSet;
 pub use pdf_read::PdfRead;
 pub use router_agent::RouterAgent;
 pub use web_fetch::WebFetch;

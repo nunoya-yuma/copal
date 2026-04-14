@@ -2,7 +2,8 @@ use dotenvy::dotenv;
 
 #[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::agent::{
-    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model, WebFetch,
+    create_gemini_agent, create_ollama_agent, create_openai_agent, default_model,
+    mcp::load_mcp_tools, WebFetch,
 };
 #[cfg(all(feature = "cli", not(feature = "web")))]
 use copal::cli::run_interactive;
@@ -27,7 +28,7 @@ async fn main() {
         let api_token = std::env::var("COPAL_API_TOKEN")
             .expect("COPAL_API_TOKEN environment variable is required");
         assert!(!api_token.is_empty(), "COPAL_API_TOKEN must not be empty");
-        let agent = RouterAgent::from_env();
+        let agent = RouterAgent::from_env().await;
         let app_state = AppState::new(Arc::new(agent), api_token);
         let router = build_router(Arc::new(app_state));
 
@@ -52,22 +53,23 @@ async fn main() {
         let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string());
         let model = env::var("LLM_MODEL").unwrap_or_else(|_| default_model(&provider).to_string());
         let web_fetch = WebFetch::new();
+        let mcp_tools = load_mcp_tools().await;
 
         match provider.as_str() {
             "openai" => {
                 let api_key = env::var("OPENAI_API_KEY")
                     .expect("OPENAI_API_KEY required for OpenAI provider");
-                let agent = create_openai_agent(&api_key, &model, web_fetch);
+                let agent = create_openai_agent(&api_key, &model, web_fetch, mcp_tools);
                 run_interactive(agent).await;
             }
             "gemini" => {
                 let api_key = env::var("GEMINI_API_KEY")
                     .expect("GEMINI_API_KEY required for Gemini provider");
-                let agent = create_gemini_agent(&api_key, &model, web_fetch);
+                let agent = create_gemini_agent(&api_key, &model, web_fetch, mcp_tools);
                 run_interactive(agent).await;
             }
             _ => {
-                let agent = create_ollama_agent(&model, web_fetch);
+                let agent = create_ollama_agent(&model, web_fetch, mcp_tools);
                 run_interactive(agent).await;
             }
         }
