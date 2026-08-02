@@ -46,6 +46,7 @@ async fn chat_stream(
         let prompt = message;
 
         let mut response_text = String::new();
+        let mut saw_tool_call = false;
         let mut agent_stream = state
             .agent
             .stream_chat(&prompt, state.get_session(&session_id).unwrap().to_vec())
@@ -59,11 +60,22 @@ async fn chat_stream(
                         .json_data(SseEventData::Text { content: text })
                         .unwrap()
                 }
-                ChatStreamEvent::ToolCall { name } => Event::default()
-                    .json_data(SseEventData::ToolUse { tool_name: name })
-                    .unwrap(),
+                ChatStreamEvent::ToolCall { name } => {
+                    saw_tool_call = true;
+                    Event::default()
+                        .json_data(SseEventData::ToolUse { tool_name: name })
+                        .unwrap()
+                }
                 ChatStreamEvent::Done => {
                     state.add_assistant_message(&session_id, &response_text);
+
+                    if response_text.is_empty() && !saw_tool_call {
+                        log::error!(
+                            "Agent stream ended with no text and no tool call for session {session_id} — \
+                             likely an upstream LLM failure swallowed by the agent (e.g. quota exhausted)"
+                        );
+                    }
+
                     Event::default()
                         .json_data(SseEventData::Done {
                             session_id: session_id.clone(),
