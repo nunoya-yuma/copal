@@ -52,7 +52,7 @@ dotenvy = "0.15"
 texting_robots = "0.2"
 
 # PDF text extraction
-pdf-extract = "0.10"
+pdf-extract = "0.12"
 
 # Terminal markdown rendering (optional, gated behind "cli" feature)
 termimad = { version = "0.34", optional = true }
