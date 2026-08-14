@@ -10,7 +10,7 @@ web = ["dep:axum", "dep:tower-http", "dep:uuid", "dep:tokio-stream"]
 
 [dependencies]
 # CLI (optional, gated behind "cli" feature)
-rustyline = { version = "17.0", optional = true }
+rustyline = { version = "18.0", optional = true }
 
 # Async runtime
 tokio = { version = "1.50", features = ["full"] }
