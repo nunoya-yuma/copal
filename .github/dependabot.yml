@@ -15,8 +15,8 @@ updates:
     ignore:
       # rmcp is a transitive dependency of rig-core, which currently pins it
       # to ^0.13. A direct major bump breaks the build with two incompatible
-      # rmcp versions in the dependency graph (see PR #144). Bump rmcp only
-      # together with a compatible rig-core upgrade.
+      # rmcp versions in the dependency graph (see closed PR #144). Bump rmcp
+      # only together with a compatible rig-core upgrade. Tracked in #146.
       - dependency-name: "rmcp"
         update-types: ["version-update:semver-major"]
 
@@ -32,6 +32,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # TypeScript 7.x is a native Go-compiler rewrite that breaks typecheck
+      # here and is not yet supported by typescript-eslint/ESLint/ts-jest
+      # (see closed PR #129). Revisit once the ecosystem catches up.
+      # Tracked in #147.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
