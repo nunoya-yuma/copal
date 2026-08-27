@@ -12,6 +12,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # rmcp is a transitive dependency of rig-core, which currently pins it
+      # to ^0.13. A direct major bump breaks the build with two incompatible
+      # rmcp versions in the dependency graph (see PR #144). Bump rmcp only
+      # together with a compatible rig-core upgrade.
+      - dependency-name: "rmcp"
+        update-types: ["version-update:semver-major"]
 
   # npm (frontend)
   - package-ecosystem: "npm"
