@@ -17,6 +17,14 @@ jobs:
 
   build-and-deploy:
     needs: test  # Only deploy if tests pass
+    # Serialize Azure Container Apps updates: concurrent `az containerapp
+    # update` calls race and one fails with ContainerAppOperationInProgress.
+    # cancel-in-progress is explicitly false so an in-flight Azure update is
+    # never interrupted; only stacked *pending* runs get collapsed to the
+    # latest, and only that collapsed run shows as cancelled (not failed).
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
