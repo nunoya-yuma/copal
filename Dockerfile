@@ -1,5 +1,5 @@
 # Stage 1: Frontend build
-FROM node:20-alpine AS frontend-builder
+FROM node:26-alpine AS frontend-builder
 WORKDIR /app/frontend
 # Copy package files for dependency caching
 COPY frontend/package.json frontend/package-lock.json ./
